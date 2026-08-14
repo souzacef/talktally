@@ -1,0 +1,18 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Gradle
+.gradle/
+**/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+
+# Desktop metadata
+.directory
+.DS_Store

@@ -2,7 +2,9 @@ package com.talktally.infrastructure.persistence.jpa.adapter;
 
 import com.talktally.domain.CategoryId;
 import com.talktally.domain.FinancialTransaction;
+import com.talktally.domain.FinancialTransactionPage;
 import com.talktally.domain.FinancialTransactionRepository;
+import com.talktally.domain.FinancialTransactionSearchCriteria;
 import com.talktally.domain.Money;
 import com.talktally.domain.TransactionId;
 import com.talktally.domain.TransactionOccurrence;
@@ -11,12 +13,21 @@ import com.talktally.infrastructure.persistence.jpa.entity.FinancialTransactionJ
 import com.talktally.infrastructure.persistence.jpa.entity.TransactionOccurrenceJpaEntity;
 import com.talktally.infrastructure.persistence.jpa.repository.FinancialTransactionEntityRepository;
 import com.talktally.infrastructure.persistence.jpa.repository.TransactionOccurrenceEntityRepository;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -70,6 +81,43 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 										transactionId.value(), ownerId.value())));
 	}
 
+	@Override
+	public FinancialTransactionPage search(
+			UserId ownerId,
+			FinancialTransactionSearchCriteria criteria) {
+		Objects.requireNonNull(ownerId, "owner id must not be null");
+		Objects.requireNonNull(criteria, "criteria must not be null");
+
+		PageRequest pageable = PageRequest.of(
+				criteria.page(),
+				criteria.size(),
+				Sort.by(Sort.Order.desc("eventDate"), Sort.Order.asc("id")));
+		Page<FinancialTransactionJpaEntity> page = transactionRepository.findAll(
+				searchSpecification(ownerId.value(), criteria), pageable);
+		List<FinancialTransaction> transactions = page.getContent().stream()
+				.map(entity -> toDomain(
+						entity,
+						occurrenceRepository
+								.findAllByTransactionIdAndUserIdOrderBySequenceNumberAsc(
+										entity.getId(), ownerId.value())))
+				.toList();
+
+		return new FinancialTransactionPage(
+				transactions,
+				page.getNumber(),
+				page.getSize(),
+				page.getTotalElements());
+	}
+
+	@Override
+	@Transactional
+	public boolean deleteById(UserId ownerId, TransactionId transactionId) {
+		Objects.requireNonNull(ownerId, "owner id must not be null");
+		Objects.requireNonNull(transactionId, "transaction id must not be null");
+		return transactionRepository.deleteByIdAndUserId(
+				transactionId.value(), ownerId.value()) == 1;
+	}
+
 	private static FinancialTransactionJpaEntity update(
 			FinancialTransactionJpaEntity entity,
 			FinancialTransaction transaction,
@@ -115,6 +163,50 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 						occurrence.amount().amount(),
 						occurrence.amount().currency().getCurrencyCode()))
 				.toList();
+	}
+
+	private static Specification<FinancialTransactionJpaEntity> searchSpecification(
+			UUID ownerId,
+			FinancialTransactionSearchCriteria criteria) {
+		return (root, query, builder) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			predicates.add(builder.equal(root.get("userId"), ownerId));
+			criteria.kind().ifPresent(kind ->
+					predicates.add(builder.equal(root.get("kind"), kind)));
+			criteria.categoryId().ifPresent(categoryId ->
+					predicates.add(builder.equal(root.get("categoryId"), categoryId.value())));
+			criteria.searchText().ifPresent(searchText -> predicates.add(builder.like(
+					builder.lower(root.get("description")),
+					"%" + escapeLike(searchText.toLowerCase(Locale.ROOT)) + "%",
+					'\\')));
+
+			if (criteria.effectiveDateFrom().isPresent()
+					|| criteria.effectiveDateTo().isPresent()) {
+				Subquery<Integer> occurrenceExists = query.subquery(Integer.class);
+				Root<TransactionOccurrenceJpaEntity> occurrence = occurrenceExists.from(
+						TransactionOccurrenceJpaEntity.class);
+				List<Predicate> occurrencePredicates = new ArrayList<>();
+				occurrencePredicates.add(builder.equal(
+						occurrence.get("transactionId"), root.get("id")));
+				occurrencePredicates.add(builder.equal(occurrence.get("userId"), ownerId));
+				criteria.effectiveDateFrom().ifPresent(from -> occurrencePredicates.add(
+						builder.greaterThanOrEqualTo(occurrence.get("effectiveDate"), from)));
+				criteria.effectiveDateTo().ifPresent(to -> occurrencePredicates.add(
+						builder.lessThanOrEqualTo(occurrence.get("effectiveDate"), to)));
+				occurrenceExists.select(builder.literal(1)).where(
+						occurrencePredicates.toArray(Predicate[]::new));
+				predicates.add(builder.exists(occurrenceExists));
+			}
+
+			return builder.and(predicates.toArray(Predicate[]::new));
+		};
+	}
+
+	private static String escapeLike(String value) {
+		return value
+				.replace("\\", "\\\\")
+				.replace("%", "\\%")
+				.replace("_", "\\_");
 	}
 
 	private static FinancialTransaction toDomain(

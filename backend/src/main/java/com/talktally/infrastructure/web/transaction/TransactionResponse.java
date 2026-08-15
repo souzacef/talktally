@@ -25,7 +25,7 @@ public record TransactionResponse(
 		occurrences = List.copyOf(occurrences);
 	}
 
-	static TransactionResponse from(TransactionOutput output) {
+	public static TransactionResponse from(TransactionOutput output) {
 		return new TransactionResponse(
 				output.transactionId().value(),
 				output.kind(),

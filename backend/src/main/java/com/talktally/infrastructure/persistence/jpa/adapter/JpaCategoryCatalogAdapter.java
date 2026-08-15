@@ -35,6 +35,13 @@ public class JpaCategoryCatalogAdapter implements CategoryCatalog {
 				.map(JpaCategoryCatalogAdapter::toDomain);
 	}
 
+	@Override
+	public Optional<CategoryMetadata> findBuiltInByCode(String code) {
+		Objects.requireNonNull(code, "code must not be null");
+		return categoryRepository.findByCodeAndOwnerUserIdIsNull(code)
+				.map(JpaCategoryCatalogAdapter::toDomain);
+	}
+
 	private static CategoryMetadata toDomain(CategoryJpaEntity entity) {
 		return new CategoryMetadata(
 				CategoryId.from(entity.getId()),

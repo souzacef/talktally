@@ -1,6 +1,7 @@
 package com.talktally.infrastructure.web.transaction;
 
 import com.talktally.application.exception.InvalidTransactionInputException;
+import com.talktally.application.exception.ProtectedTransactionException;
 import com.talktally.application.exception.TransactionNotFoundException;
 import com.talktally.infrastructure.web.ApiError;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,13 @@ public class TransactionExceptionHandler {
 		return ResponseEntity
 				.status(HttpStatus.NOT_FOUND)
 				.body(new ApiError("TRANSACTION_NOT_FOUND", "transaction not found"));
+	}
+
+	@ExceptionHandler(ProtectedTransactionException.class)
+	public ResponseEntity<ApiError> protectedTransaction() {
+		return ResponseEntity
+				.status(HttpStatus.CONFLICT)
+				.body(new ApiError("TRANSACTION_PROTECTED", "transaction is linked to reimbursement data"));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

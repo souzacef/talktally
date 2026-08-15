@@ -6,6 +6,7 @@ import com.talktally.domain.FinancialTransactionPage;
 import com.talktally.domain.FinancialTransactionRepository;
 import com.talktally.domain.FinancialTransactionSearchCriteria;
 import com.talktally.domain.Money;
+import com.talktally.domain.ReimbursementClaimRepository;
 import com.talktally.domain.TransactionId;
 import com.talktally.domain.TransactionOccurrence;
 import com.talktally.domain.UserId;
@@ -38,12 +39,16 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 
 	private final FinancialTransactionEntityRepository transactionRepository;
 	private final TransactionOccurrenceEntityRepository occurrenceRepository;
+	private final ReimbursementClaimRepository reimbursementClaimRepository;
 
 	public JpaFinancialTransactionRepositoryAdapter(
 			FinancialTransactionEntityRepository transactionRepository,
-			TransactionOccurrenceEntityRepository occurrenceRepository) {
+			TransactionOccurrenceEntityRepository occurrenceRepository,
+			ReimbursementClaimRepository reimbursementClaimRepository) {
 		this.transactionRepository = transactionRepository;
 		this.occurrenceRepository = occurrenceRepository;
+		this.reimbursementClaimRepository = Objects.requireNonNull(
+				reimbursementClaimRepository, "reimbursement repository must not be null");
 	}
 
 	@Override
@@ -116,6 +121,11 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 		Objects.requireNonNull(transactionId, "transaction id must not be null");
 		return transactionRepository.deleteByIdAndUserId(
 				transactionId.value(), ownerId.value()) == 1;
+	}
+
+	@Override
+	public boolean isLinkedToReimbursement(UserId ownerId, TransactionId transactionId) {
+		return reimbursementClaimRepository.isTransactionLinked(ownerId, transactionId);
 	}
 
 	private static FinancialTransactionJpaEntity update(

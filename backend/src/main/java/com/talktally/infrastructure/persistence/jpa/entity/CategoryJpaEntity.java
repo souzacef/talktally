@@ -18,6 +18,9 @@ public class CategoryJpaEntity {
 	@Column(name = "owner_user_id")
 	private UUID ownerUserId;
 
+	@Column(name = "code", nullable = false, length = 50)
+	private String code;
+
 	@Column(name = "allowed_kind", nullable = false, length = 32)
 	private String allowedKind;
 
@@ -30,6 +33,10 @@ public class CategoryJpaEntity {
 
 	public UUID getOwnerUserId() {
 		return ownerUserId;
+	}
+
+	public String getCode() {
+		return code;
 	}
 
 	public String getAllowedKind() {

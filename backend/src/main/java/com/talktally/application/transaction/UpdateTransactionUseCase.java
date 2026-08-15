@@ -1,6 +1,7 @@
 package com.talktally.application.transaction;
 
 import com.talktally.application.exception.InvalidTransactionInputException;
+import com.talktally.application.exception.ProtectedTransactionException;
 import com.talktally.application.exception.TransactionNotFoundException;
 import com.talktally.application.input.UpdateTransactionInput;
 import com.talktally.application.output.TransactionOutput;
@@ -43,6 +44,9 @@ public class UpdateTransactionUseCase {
 
 		FinancialTransaction existing = transactionRepository.findById(actorId, transactionId)
 				.orElseThrow(() -> new TransactionNotFoundException(transactionId));
+		if (transactionRepository.isLinkedToReimbursement(actorId, transactionId)) {
+			throw new ProtectedTransactionException();
+		}
 		ValidatedTransactionInput validated = validator.validate(
 				actorId,
 				input.kind(),

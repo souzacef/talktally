@@ -13,4 +13,8 @@ public interface FinancialTransactionRepository {
 			FinancialTransactionSearchCriteria criteria);
 
 	boolean deleteById(UserId ownerId, TransactionId transactionId);
+
+	default boolean isLinkedToReimbursement(UserId ownerId, TransactionId transactionId) {
+		return false;
+	}
 }

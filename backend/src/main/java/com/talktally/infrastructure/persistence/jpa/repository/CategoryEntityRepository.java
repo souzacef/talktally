@@ -19,4 +19,6 @@ public interface CategoryEntityRepository extends JpaRepository<CategoryJpaEntit
 	Optional<CategoryJpaEntity> findVisibleById(
 			@Param("ownerId") UUID ownerId,
 			@Param("categoryId") UUID categoryId);
+
+	Optional<CategoryJpaEntity> findByCodeAndOwnerUserIdIsNull(String code);
 }

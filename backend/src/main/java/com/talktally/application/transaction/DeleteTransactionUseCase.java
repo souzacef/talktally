@@ -1,6 +1,7 @@
 package com.talktally.application.transaction;
 
 import com.talktally.application.exception.InvalidTransactionInputException;
+import com.talktally.application.exception.ProtectedTransactionException;
 import com.talktally.application.exception.TransactionNotFoundException;
 import com.talktally.domain.FinancialTransactionRepository;
 import com.talktally.domain.TransactionId;
@@ -27,6 +28,12 @@ public class DeleteTransactionUseCase {
 			throw new InvalidTransactionInputException("transaction id is required");
 		}
 
+		if (transactionRepository.findById(actorId, transactionId).isEmpty()) {
+			throw new TransactionNotFoundException(transactionId);
+		}
+		if (transactionRepository.isLinkedToReimbursement(actorId, transactionId)) {
+			throw new ProtectedTransactionException();
+		}
 		if (!transactionRepository.deleteById(actorId, transactionId)) {
 			throw new TransactionNotFoundException(transactionId);
 		}

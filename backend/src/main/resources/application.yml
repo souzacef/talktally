@@ -13,8 +13,12 @@ spring:
     google:
       genai:
         api-key: ${GOOGLE_API_KEY:}
+        chat:
+          model: ${GOOGLE_AI_MODEL:gemini-3.5-flash}
+          temperature: 0.2
 
 talktally:
+  financial-time-zone: ${APP_TIME_ZONE:America/Sao_Paulo}
   security:
     jwt:
       secret-base64: ${JWT_SECRET_BASE64:}

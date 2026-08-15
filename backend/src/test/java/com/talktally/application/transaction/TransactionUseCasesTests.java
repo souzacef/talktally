@@ -198,6 +198,21 @@ class TransactionUseCasesTests {
 	}
 
 	@Test
+	void rejectsUserManagedReimbursementReceiptCreation() {
+		assertThrows(
+				InvalidTransactionInputException.class,
+				() -> create(
+						USER_A,
+						TransactionKind.REIMBURSEMENT_RECEIPT,
+						"Receipt",
+						"10.00",
+						ANY_CATEGORY,
+						EVENT_DATE,
+						1,
+						TransactionSource.MANUAL));
+	}
+
+	@Test
 	void getsOwnedTransaction() {
 		TransactionOutput created = createDefault(USER_A, "Owned");
 
@@ -421,6 +436,24 @@ class TransactionUseCasesTests {
 								"Wrong category",
 								new BigDecimal("10.00"),
 								INCOME_CATEGORY,
+								EVENT_DATE,
+								1)));
+	}
+
+	@Test
+	void rejectsChangingTransactionIntoAReimbursementReceipt() {
+		TransactionOutput created = createDefault(USER_A, "Original");
+
+		assertThrows(
+				InvalidTransactionInputException.class,
+				() -> updateUseCase.execute(
+						USER_A,
+						created.transactionId(),
+						new UpdateTransactionInput(
+								TransactionKind.REIMBURSEMENT_RECEIPT,
+								"Receipt",
+								new BigDecimal("10.00"),
+								ANY_CATEGORY,
 								EVENT_DATE,
 								1)));
 	}

@@ -34,8 +34,13 @@ final class TransactionInputValidator {
 		if (kind == null) {
 			throw invalid("kind is required");
 		}
+		TransactionPolicy.requireUserManagedKind(kind);
 		if (description == null || description.isBlank()) {
 			throw invalid("description must not be blank");
+		}
+		if (description.strip().length() > TransactionPolicy.MAX_DESCRIPTION_LENGTH) {
+			throw invalid("description must not exceed "
+					+ TransactionPolicy.MAX_DESCRIPTION_LENGTH + " characters");
 		}
 		if (amount == null) {
 			throw invalid("amount is required");

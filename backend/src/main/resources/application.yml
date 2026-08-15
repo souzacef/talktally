@@ -9,6 +9,10 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 9MB
   ai:
     google:
       genai:
@@ -19,6 +23,11 @@ spring:
 
 talktally:
   financial-time-zone: ${APP_TIME_ZONE:America/Sao_Paulo}
+  speech:
+    google:
+      api-key: ${GOOGLE_API_KEY:}
+      tts-model: ${GOOGLE_TTS_MODEL:gemini-3.1-flash-tts-preview}
+      tts-voice: ${GOOGLE_TTS_VOICE:Kore}
   security:
     jwt:
       secret-base64: ${JWT_SECRET_BASE64:}

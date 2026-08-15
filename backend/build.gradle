@@ -51,7 +51,7 @@ dependencyManagement {
 
 tasks.named('test') {
 	useJUnitPlatform {
-		excludeTags 'ai-live'
+		excludeTags 'ai-live', 'ai-voice-live'
 	}
 }
 
@@ -62,6 +62,17 @@ tasks.register('aiLiveTest', Test) {
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform {
 		includeTags 'ai-live'
+	}
+	shouldRunAfter tasks.named('test')
+}
+
+tasks.register('aiVoiceLiveTest', Test) {
+	description = 'Runs the opt-in Google GenAI voice smoke test (requires GOOGLE_API_KEY and network/quota).'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'ai-voice-live'
 	}
 	shouldRunAfter tasks.named('test')
 }

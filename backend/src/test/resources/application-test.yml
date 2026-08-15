@@ -10,3 +10,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+
+talktally:
+  security:
+    jwt:
+      # Deliberately public, test-only 256-bit key material (32 zero bytes).
+      secret-base64: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      access-ttl-seconds: 3600

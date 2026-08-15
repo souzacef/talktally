@@ -13,3 +13,9 @@ spring:
     google:
       genai:
         api-key: ${GOOGLE_API_KEY:}
+
+talktally:
+  security:
+    jwt:
+      secret-base64: ${JWT_SECRET_BASE64:}
+      access-ttl-seconds: ${JWT_ACCESS_TTL_SECONDS:3600}

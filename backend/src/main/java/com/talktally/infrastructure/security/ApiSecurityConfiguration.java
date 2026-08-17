@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration(proxyBeanMethods = false)
 public class ApiSecurityConfiguration {
@@ -15,10 +16,12 @@ public class ApiSecurityConfiguration {
 	@Bean
 	SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
+			CorsConfigurationSource corsConfigurationSource,
 			JsonAuthenticationEntryPoint authenticationEntryPoint,
 			JsonAccessDeniedHandler accessDeniedHandler) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
+				.cors(cors -> cors.configurationSource(corsConfigurationSource))
 				.sessionManagement(session ->
 						session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize

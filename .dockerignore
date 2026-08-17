@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.env.*
+**/.gradle
+**/build
+**/.idea
+**/.vscode
+**/node_modules
+*.log

@@ -21,8 +21,26 @@ spring:
           model: ${GOOGLE_AI_MODEL:gemini-3.5-flash}
           temperature: 0.2
 
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
 talktally:
   financial-time-zone: ${APP_TIME_ZONE:America/Sao_Paulo}
+  web:
+    cors:
+      allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
   speech:
     google:
       api-key: ${GOOGLE_API_KEY:}

@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,6 +33,7 @@ public class ReimbursementPaymentJpaEntity {
 	private BigDecimal amount;
 
 	@Column(name = "currency", nullable = false, length = 3, columnDefinition = "CHAR(3)")
+	@JdbcTypeCode(SqlTypes.CHAR)
 	private String currency;
 
 	@Column(name = "received_date", nullable = false)

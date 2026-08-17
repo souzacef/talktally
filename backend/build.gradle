@@ -99,5 +99,12 @@ tasks.register('postgresIntegrationTest', Test) {
 	testClassesDirs = sourceSets.postgresIntegrationTest.output.classesDirs
 	classpath = sourceSets.postgresIntegrationTest.runtimeClasspath
 	useJUnitPlatform()
+	testLogging {
+		events 'failed'
+		exceptionFormat = 'full'
+		showExceptions = true
+		showCauses = true
+		showStackTraces = true
+	}
 	shouldRunAfter tasks.named('test')
 }

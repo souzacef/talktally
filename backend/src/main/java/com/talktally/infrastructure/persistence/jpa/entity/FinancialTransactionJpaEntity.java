@@ -9,6 +9,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -37,6 +39,7 @@ public class FinancialTransactionJpaEntity {
 	private BigDecimal totalAmount;
 
 	@Column(name = "currency", nullable = false, length = 3, columnDefinition = "CHAR(3)")
+	@JdbcTypeCode(SqlTypes.CHAR)
 	private String currency;
 
 	@Column(name = "category_id", nullable = false)

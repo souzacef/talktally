@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -26,6 +28,7 @@ public class UserAccountJpaEntity {
 	private String displayName;
 
 	@Column(name = "default_currency", nullable = false, length = 3, columnDefinition = "CHAR(3)")
+	@JdbcTypeCode(SqlTypes.CHAR)
 	private String defaultCurrency;
 
 	@Column(name = "created_at", nullable = false)

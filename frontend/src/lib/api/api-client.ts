@@ -51,7 +51,7 @@ export class ApiClient {
     this.baseUrl = normalizeApiBaseUrl(options.baseUrl)
     this.getAccessToken = options.getAccessToken ?? (() => null)
     this.onUnauthorized = options.onUnauthorized ?? (() => undefined)
-    this.fetchImplementation = options.fetchImplementation ?? fetch
+    this.fetchImplementation = options.fetchImplementation ?? globalThis.fetch.bind(globalThis)
   }
 
   get<T>(path: string, options: Omit<ApiRequestOptions, 'method' | 'json' | 'formData'> = {}) {

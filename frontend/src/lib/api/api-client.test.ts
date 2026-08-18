@@ -16,6 +16,22 @@ function clientWith(fetchMock: ReturnType<typeof vi.fn>, options: {
 }
 
 describe('ApiClient', () => {
+  it('preserves the native fetch receiver on the default-fetch path', async () => {
+    const receiverSensitiveFetch = vi.fn(function (this: typeof globalThis) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation')
+      return Promise.resolve(new Response('{"ok":true}', { status: 200 }))
+    })
+    vi.stubGlobal('fetch', receiverSensitiveFetch)
+
+    try {
+      const client = new ApiClient({ baseUrl: 'http://localhost:8080' })
+      await expect(client.get('/api/test')).resolves.toEqual({ ok: true })
+      expect(receiverSensitiveFetch).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('normalizes trailing slashes and rejects malformed base URLs', () => {
     expect(normalizeApiBaseUrl('http://localhost:8080///')).toBe('http://localhost:8080')
     expect(() => normalizeApiBaseUrl('not a url')).toThrow(/absolute URL/)

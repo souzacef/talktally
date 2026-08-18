@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ApiClient, ApiError } from '@/lib/api/api-client'
-import { AuthSession } from '@/lib/auth/auth-session'
+import { AUTHENTICATED_USER_KEY, AuthSession } from '@/lib/auth/auth-session'
 import { normalizeApiBaseUrl } from '@/lib/env/env'
 
 function clientWith(fetchMock: ReturnType<typeof vi.fn>, options: {
@@ -84,7 +84,12 @@ describe('ApiClient', () => {
   it('clears a stale session through the centralized 401 behavior', async () => {
     const storage = window.sessionStorage
     const session = new AuthSession(storage)
-    session.setToken('stale-token')
+    session.setAuthenticated('stale-token', {
+      userId: '10000000-0000-0000-0000-000000000001',
+      email: 'stale@example.com',
+      displayName: 'Stale User',
+      defaultCurrency: 'BRL',
+    })
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       '{"code":"UNAUTHORIZED","message":"Authentication is required"}',
       { status: 401 },
@@ -94,5 +99,7 @@ describe('ApiClient', () => {
       onUnauthorized: session.expire,
     }).get('/api/protected')).rejects.toBeInstanceOf(ApiError)
     expect(session.getToken()).toBeNull()
+    expect(session.getUser()).toBeNull()
+    expect(storage.getItem(AUTHENTICATED_USER_KEY)).toBeNull()
   })
 })

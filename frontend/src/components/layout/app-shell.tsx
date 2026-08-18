@@ -13,9 +13,14 @@ const navigation = [
   { to: '/owed', label: 'Owed to Me', icon: HandCoins },
   { to: '/assistant', label: 'Assistant', icon: Bot },
 ]
+function accountInitials(displayName: string | undefined): string {
+  const initial = displayName?.trim().charAt(0).toUpperCase()
+  return initial || '?'
+}
+
 
 export function AppShell() {
-  const { signOut } = useAuth()
+  const { signOut, user } = useAuth()
   const navigate = useNavigate()
   const [accountOpen, setAccountOpen] = useState(false)
 
@@ -55,9 +60,12 @@ export function AppShell() {
             <ThemeControl showLabels className="w-full justify-between" />
           </div>
           <div className="rounded-2xl border border-sidebar-border bg-card/60 p-3">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <span className="grid size-8 place-items-center rounded-full bg-accent text-primary"><Settings className="size-4" aria-hidden="true" /></span>
-              <span>Account</span>
+            <div className="mb-3 flex min-w-0 items-center gap-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent font-heading text-sm font-semibold text-primary">{accountInitials(user?.displayName)}</span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold" title={user?.displayName}>{user?.displayName ?? 'Active account'}</p>
+                <p className="truncate text-xs text-muted-foreground" title={user?.email}>{user?.email ?? 'Identity unavailable'}</p>
+              </div>
             </div>
             <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={leaveSession}>
               <LogOut aria-hidden="true" /> Sign out
@@ -137,9 +145,10 @@ export function AppShell() {
             className="absolute inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] rounded-3xl border bg-card p-5 shadow-[var(--shadow-lift)]"
           >
             <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 id="account-sheet-title" className="font-heading text-lg font-semibold">Account</h2>
-                <p className="text-sm text-muted-foreground">Appearance and session</p>
+              <div className="min-w-0">
+                <p className="text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">Account</p>
+                <h2 id="account-sheet-title" className="truncate font-heading text-lg font-semibold" title={user?.displayName}>{user?.displayName ?? 'Active account'}</h2>
+                <p className="truncate text-sm text-muted-foreground" title={user?.email}>{user?.email ?? 'Identity unavailable'}</p>
               </div>
               <Button type="button" variant="ghost" size="icon" aria-label="Close account settings" onClick={() => setAccountOpen(false)}>
                 <X aria-hidden="true" />

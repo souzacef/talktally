@@ -1,10 +1,14 @@
 import { QueryClient } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider'
 import type { AuthService } from '@/features/auth/api/auth-api'
-import { ACCESS_TOKEN_KEY, AuthSession } from '@/lib/auth/auth-session'
+import {
+  ACCESS_TOKEN_KEY,
+  AUTHENTICATED_USER_KEY,
+  AuthSession,
+} from '@/lib/auth/auth-session'
 
 const response = {
   accessToken: 'signed-token',
@@ -30,19 +34,22 @@ function Probe() {
   const auth = useAuth()
   return (
     <div>
-      <span>{auth.token ?? 'none'}</span>
+      <span data-testid="token">{auth.token ?? 'none'}</span>
+      <span data-testid="display-name">{auth.user?.displayName ?? 'no-user'}</span>
+      <span data-testid="email">{auth.user?.email ?? 'no-email'}</span>
+      <span data-testid="session-reason">{auth.lastSessionChange ?? 'none'}</span>
       <button onClick={() => void auth.signIn({ email: 'user@example.com', password: 'secret1234' })}>login</button>
       <button onClick={auth.signOut}>logout</button>
     </div>
   )
 }
 
-function renderProvider(session: AuthSession) {
+function renderProvider(session: AuthSession, privateQueryClient = new QueryClient()) {
   return render(
     <AuthProvider
       session={session}
       service={service()}
-      privateQueryClient={new QueryClient()}
+      privateQueryClient={privateQueryClient}
     >
       <Probe />
     </AuthProvider>,
@@ -50,25 +57,55 @@ function renderProvider(session: AuthSession) {
 }
 
 describe('AuthProvider', () => {
-  it('stores a successful login token in sessionStorage', async () => {
+  it('stores and exposes the token and authenticated user after sign-in', async () => {
     const session = new AuthSession(window.sessionStorage)
     renderProvider(session)
+
     await userEvent.click(screen.getByRole('button', { name: 'login' }))
-    await waitFor(() => expect(screen.getByText('signed-token')).toBeInTheDocument())
+
+    await waitFor(() => expect(screen.getByTestId('token')).toHaveTextContent('signed-token'))
+    expect(screen.getByTestId('display-name')).toHaveTextContent(response.user.displayName)
+    expect(screen.getByTestId('email')).toHaveTextContent(response.user.email)
     expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBe('signed-token')
+    expect(JSON.parse(window.sessionStorage.getItem(AUTHENTICATED_USER_KEY) ?? 'null')).toEqual(response.user)
   })
 
-  it('clears the token on logout', async () => {
+  it('clears the token and user together on sign-out', async () => {
     const session = new AuthSession(window.sessionStorage)
-    session.setToken('existing-token')
+    session.setAuthenticated('existing-token', response.user)
     renderProvider(session)
+
     await userEvent.click(screen.getByRole('button', { name: 'logout' }))
+
+    expect(screen.getByTestId('token')).toHaveTextContent('none')
+    expect(screen.getByTestId('display-name')).toHaveTextContent('no-user')
     expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()
+    expect(window.sessionStorage.getItem(AUTHENTICATED_USER_KEY)).toBeNull()
   })
 
-  it('initializes from an existing session after a reload', () => {
-    window.sessionStorage.setItem(ACCESS_TOKEN_KEY, 'existing-token')
+  it('restores the token and user through a recreated session after reload', () => {
+    new AuthSession(window.sessionStorage).setAuthenticated('existing-token', response.user)
+
     renderProvider(new AuthSession(window.sessionStorage))
-    expect(screen.getByText('existing-token')).toBeInTheDocument()
+
+    expect(screen.getByTestId('token')).toHaveTextContent('existing-token')
+    expect(screen.getByTestId('display-name')).toHaveTextContent(response.user.displayName)
+    expect(screen.getByTestId('email')).toHaveTextContent(response.user.email)
+  })
+
+  it('clears token, user, and private query data when the session expires', () => {
+    const session = new AuthSession(window.sessionStorage)
+    const privateQueryClient = new QueryClient()
+    session.setAuthenticated('expired-token', response.user)
+    privateQueryClient.setQueryData(['private'], 'private data')
+    renderProvider(session, privateQueryClient)
+
+    act(() => session.expire())
+
+    expect(screen.getByTestId('token')).toHaveTextContent('none')
+    expect(screen.getByTestId('display-name')).toHaveTextContent('no-user')
+    expect(screen.getByTestId('session-reason')).toHaveTextContent('expired')
+    expect(session.getUser()).toBeNull()
+    expect(privateQueryClient.getQueryData(['private'])).toBeUndefined()
   })
 })

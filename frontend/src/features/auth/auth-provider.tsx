@@ -9,7 +9,11 @@ import {
 } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { authApi, type AuthService } from '@/features/auth/api/auth-api'
-import { authSession, type AuthSession } from '@/lib/auth/auth-session'
+import {
+  authSession,
+  type AuthSession,
+  type SessionChangeReason,
+} from '@/lib/auth/auth-session'
 import { queryClient } from '@/lib/query/query-client'
 import type {
   AuthenticationRequest,
@@ -20,6 +24,8 @@ import type {
 
 interface AuthContextValue {
   token: string | null
+  user: UserAccountResponse | null
+  lastSessionChange: SessionChangeReason | null
   isAuthenticated: boolean
   signIn: (request: AuthenticationRequest) => Promise<AuthenticationResponse>
   register: (request: RegistrationRequest) => Promise<UserAccountResponse>
@@ -46,6 +52,16 @@ export function AuthProvider({
     session.getToken,
     session.getServerToken,
   )
+  const user = useSyncExternalStore(
+    session.subscribe,
+    session.getUser,
+    session.getServerUser,
+  )
+  const lastSessionChange = useSyncExternalStore(
+    session.subscribe,
+    session.getLastChangeReason,
+    session.getServerChangeReason,
+  )
 
   useEffect(
     () => session.subscribeToReason((reason) => {
@@ -58,7 +74,7 @@ export function AuthProvider({
 
   const signIn = useCallback(async (request: AuthenticationRequest) => {
     const response = await service.signIn(request)
-    session.setToken(response.accessToken)
+    session.setAuthenticated(response.accessToken, response.user)
     return response
   }, [service, session])
 
@@ -74,11 +90,13 @@ export function AuthProvider({
 
   const value = useMemo<AuthContextValue>(() => ({
     token,
+    user,
+    lastSessionChange,
     isAuthenticated: token !== null,
     signIn,
     register,
     signOut,
-  }), [register, signIn, signOut, token])
+  }), [lastSessionChange, register, signIn, signOut, token, user])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

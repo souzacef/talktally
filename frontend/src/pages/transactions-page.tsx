@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ChevronDown, Filter, Pencil, Plus, Search } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useLocation } from 'react-router-dom'
 import { StatePanel } from '@/components/feedback/state-panel'
 import {
   KindBadge,
@@ -43,6 +44,7 @@ function mutationErrorMessage(error: Error | null, action: 'create' | 'edit'): s
 }
 
 export function TransactionsPage() {
+  const location = useLocation()
   const queryClient = useQueryClient()
   const categories = useCategories()
   const [search, setSearch] = useState('')
@@ -53,7 +55,10 @@ export function TransactionsPage() {
   const [params, setParams] = useState<TransactionListParams>(initialParams)
   const [showCreate, setShowCreate] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<string | null>(() => {
+    const state = location.state as { feedback?: unknown } | null
+    return typeof state?.feedback === 'string' ? state.feedback : null
+  })
   const query = useQuery({
     queryKey: queryKeys.transactions.list(params),
     queryFn: ({ signal }) => transactionApi.list(params, signal),
@@ -241,9 +246,16 @@ export function TransactionsPage() {
                 : categoryLabelForId(categories.data, transaction.categoryId)
               return (
                 <li key={transaction.id} className="py-4 first:pt-0 last:pb-0">
-                  <div className="flex items-start gap-3">
+                  <div
+                    className="group/ledger-row relative flex items-start gap-3 rounded-xl transition-colors hover:bg-muted/45"
+                  >
+                    <Link
+                      to={`/transactions/${transaction.id}`}
+                      aria-label={`View transaction ${transaction.description}`}
+                      className="absolute inset-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+                    />
                     <KindIcon kind={transaction.kind} />
-                    <div className="min-w-0 flex-1">
+                    <div className="pointer-events-none min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="min-w-0 truncate font-semibold">{transaction.description}</p>
                         <span className="hidden sm:inline-flex"><KindBadge kind={transaction.kind} /></span>
@@ -258,7 +270,7 @@ export function TransactionsPage() {
                         <span>{transaction.source.replace('_', ' ').toLowerCase()}</span>
                       </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
+                    <div className="pointer-events-none flex shrink-0 flex-col items-end gap-2">
                       <span className={`tabular-nums font-heading text-base font-semibold sm:text-lg ${amount.className}`}>
                         {amount.prefix}{formatBrl(transaction.amount)}
                       </span>
@@ -267,7 +279,9 @@ export function TransactionsPage() {
                           type="button"
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
+                          className="pointer-events-auto relative z-10"
+                          onClick={(event) => {
+                            event.stopPropagation()
                             setShowCreate(false)
                             createMutation.reset()
                             updateMutation.reset()

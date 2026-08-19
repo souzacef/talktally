@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/api-client'
 import { queryKeys } from '@/lib/query/query-client'
@@ -76,6 +76,11 @@ function page(items: TransactionResponse[]): PageResponse<TransactionResponse> {
   }
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{location.pathname}</output>
+}
+
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: {
@@ -86,7 +91,7 @@ function renderPage() {
   const invalidate = vi.spyOn(client, 'invalidateQueries')
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter><TransactionsPage /></MemoryRouter>
+      <MemoryRouter><TransactionsPage /><LocationProbe /></MemoryRouter>
     </QueryClientProvider>,
   )
   return { invalidate, user: userEvent.setup() }
@@ -210,5 +215,31 @@ describe('TransactionsPage category catalog integration', () => {
     expect(await screen.findByText('Unknown category')).toBeInTheDocument()
     expect(screen.getByText('Category names and category filtering are temporarily unavailable.')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('raw-uuid-fragment')
+  })
+
+  it('opens transaction detail from a ledger row', async () => {
+    const { user } = renderPage()
+    const rowLink = await screen.findByRole('link', { name: 'View transaction Coffee' })
+
+    await user.click(rowLink)
+    expect(screen.getByTestId('location')).toHaveTextContent('/transactions/expense-transaction')
+  })
+
+  it('opens transaction detail from a keyboard-focused ledger row', async () => {
+    const { user } = renderPage()
+    const rowLink = await screen.findByRole('link', { name: 'View transaction Coffee' })
+
+    rowLink.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByTestId('location')).toHaveTextContent('/transactions/expense-transaction')
+  })
+
+  it('does not navigate the ledger row when its Edit action is used', async () => {
+    const { user } = renderPage()
+    const expenseRow = (await screen.findByText('Coffee')).closest('li')
+
+    await user.click(within(expenseRow!).getByRole('button', { name: /edit/i }))
+    expect(screen.getByText('Edit transaction')).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/')
   })
 })

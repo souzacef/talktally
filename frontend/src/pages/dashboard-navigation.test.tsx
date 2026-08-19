@@ -1,0 +1,117 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DashboardPage } from '@/pages/dashboard-page'
+import type { TransactionResponse } from '@/types/api'
+
+const mocks = vi.hoisted(() => ({
+  summary: vi.fn(),
+  categoryBreakdown: vi.fn(),
+  monthlyCashFlow: vi.fn(),
+  transactionList: vi.fn(),
+  categoryList: vi.fn(),
+  peopleList: vi.fn(),
+}))
+
+vi.mock('@/features/dashboard/hooks/use-dashboard', () => ({
+  useFinancialSummary: mocks.summary,
+  useCategoryBreakdown: mocks.categoryBreakdown,
+  useMonthlyCashFlow: mocks.monthlyCashFlow,
+}))
+vi.mock('@/features/transactions/api/transaction-api', () => ({
+  transactionApi: { list: mocks.transactionList },
+}))
+vi.mock('@/features/categories/api/category-api', () => ({
+  categoryApi: { list: mocks.categoryList },
+}))
+vi.mock('@/features/reimbursements/api/people-api', () => ({
+  peopleApi: { list: mocks.peopleList },
+}))
+
+const recentTransaction: TransactionResponse = {
+  id: 'recent-transaction-id',
+  kind: 'EXPENSE',
+  description: 'Recent coffee',
+  amount: '7.89',
+  currency: 'BRL',
+  categoryId: 'food-category-id',
+  eventDate: '2026-08-19',
+  source: 'MANUAL',
+  installmentCount: 1,
+  occurrences: [
+    { sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '7.89', currency: 'BRL' },
+  ],
+}
+
+function renderDashboard() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/transactions" element={<p>All transactions destination</p>} />
+          <Route path="/transactions/:transactionId" element={<p>Transaction detail destination</p>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  return userEvent.setup()
+}
+
+describe('Dashboard Recent Activity navigation', () => {
+  beforeEach(() => {
+    mocks.summary.mockReturnValue({
+      isPending: false,
+      error: null,
+      data: {
+        period: {
+          earnedIncome: '0',
+          expenses: '7.89',
+          reimbursementsReceived: '0',
+          netCashFlow: '-7.89',
+        },
+        owedToMe: { outstanding: '0', openClaims: 0 },
+      },
+    })
+    mocks.categoryBreakdown.mockReturnValue({
+      isPending: false,
+      error: null,
+      data: { categories: [] },
+    })
+    mocks.monthlyCashFlow.mockReturnValue({
+      isPending: false,
+      error: null,
+      data: { buckets: [] },
+    })
+    mocks.transactionList.mockResolvedValue({
+      items: [recentTransaction],
+      page: 0,
+      size: 5,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    mocks.categoryList.mockResolvedValue([
+      { id: 'food-category-id', code: 'FOOD_DINING', displayName: 'Food and dining', allowedKind: 'EXPENSE', builtIn: true },
+    ])
+    mocks.peopleList.mockResolvedValue([])
+  })
+
+  it('navigates View all to the transaction ledger', async () => {
+    const user = renderDashboard()
+
+    await user.click(await screen.findByRole('link', { name: 'View all' }))
+    expect(screen.getByText('All transactions destination')).toBeInTheDocument()
+  })
+
+  it('shows the friendly category and navigates a recent transaction to detail', async () => {
+    const user = renderDashboard()
+
+    expect(await screen.findByText(/Food and dining/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('food-category-id')
+    await user.click(screen.getByRole('link', { name: 'View transaction Recent coffee' }))
+    expect(screen.getByText('Transaction detail destination')).toBeInTheDocument()
+  })
+})

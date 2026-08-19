@@ -1,12 +1,14 @@
 import { lazy, Suspense } from 'react'
-import { ArrowDownLeft, ArrowUpRight, HandCoins, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, HandCoins, RotateCcw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { VoiceOrb } from '@/components/assistant/voice-orb'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { StatePanel } from '@/components/feedback/state-panel'
 import { KindIcon } from '@/components/finance/financial-visuals'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { categoryLabelForId } from '@/features/categories/category-presentation'
+import { useCategories } from '@/features/categories/hooks/use-categories'
 import { peopleApi } from '@/features/reimbursements/api/people-api'
 import { transactionApi } from '@/features/transactions/api/transaction-api'
 import { useVoiceAssistant } from '@/features/assistant/hooks/use-voice-assistant'
@@ -36,6 +38,7 @@ export function DashboardPage() {
     queryKey: queryKeys.transactions.list(recentParams),
     queryFn: ({ signal }) => transactionApi.list(recentParams, signal),
   })
+  const categories = useCategories()
   const people = useQuery({
     queryKey: queryKeys.people.all,
     queryFn: ({ signal }) => peopleApi.list(signal),
@@ -158,7 +161,15 @@ export function DashboardPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-xl">Recent activity</CardTitle><CardDescription>Latest server-owned financial records</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-xl">Recent activity</CardTitle>
+            <CardDescription>Latest server-owned financial records</CardDescription>
+            <CardAction>
+              <Link to="/transactions" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                View all <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </CardAction>
+          </CardHeader>
           <CardContent>
             {transactions.isPending && <div className="h-36 animate-pulse rounded-2xl bg-muted" />}
             {transactions.error && <StatePanel tone="error" title="Activity unavailable" description="Recent transactions could not be loaded." />}
@@ -166,11 +177,23 @@ export function DashboardPage() {
             <ul className="divide-y">
               {transactions.data?.items.map((transaction) => {
                 const amount = financialAmountStyle(transaction.kind)
+                const categoryName = categories.isPending
+                  ? 'Loading category…'
+                  : categoryLabelForId(categories.data, transaction.categoryId)
                 return (
-                  <li key={transaction.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <KindIcon kind={transaction.kind} />
-                    <div className="min-w-0 flex-1"><p className="truncate font-semibold">{transaction.description}</p><p className="text-xs text-muted-foreground">{transaction.eventDate}</p></div>
-                    <span className={`tabular-nums font-heading font-semibold ${amount.className}`}>{amount.prefix}{formatBrl(transaction.amount)}</span>
+                  <li key={transaction.id} className="py-1 first:pt-0 last:pb-0">
+                    <Link
+                      to={`/transactions/${transaction.id}`}
+                      className="flex items-center gap-3 rounded-xl px-1 py-2 outline-none transition-colors hover:bg-muted/45 focus-visible:ring-3 focus-visible:ring-ring/30"
+                      aria-label={`View transaction ${transaction.description}`}
+                    >
+                      <KindIcon kind={transaction.kind} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold">{transaction.description}</p>
+                        <p className="truncate text-xs text-muted-foreground">{categoryName} · {transaction.eventDate}</p>
+                      </div>
+                      <span className={`tabular-nums font-heading font-semibold ${amount.className}`}>{amount.prefix}{formatBrl(transaction.amount)}</span>
+                    </Link>
                   </li>
                 )
               })}

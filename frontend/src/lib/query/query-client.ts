@@ -33,6 +33,7 @@ export const queryKeys = {
   },
   transactions: {
     all: ['transactions'] as const,
+    lists: ['transactions', 'list'] as const,
     list: (params: object) => ['transactions', 'list', params] as const,
     detail: (id: string) => ['transactions', 'detail', id] as const,
   },

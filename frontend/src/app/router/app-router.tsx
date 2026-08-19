@@ -9,6 +9,7 @@ import { NotFoundPage } from '@/pages/not-found-page'
 import { OwedPage } from '@/pages/owed-page'
 import { RegisterPage } from '@/pages/register-page'
 import { TransactionsPage } from '@/pages/transactions-page'
+import { TransactionDetailPage } from '@/pages/transaction-detail-page'
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth()
@@ -26,6 +27,7 @@ export function AppRouter() {
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
+            <Route path="/transactions/:transactionId" element={<TransactionDetailPage />} />
             <Route path="/owed" element={<OwedPage />} />
             <Route path="/assistant" element={<AssistantPage />} />
           </Route>

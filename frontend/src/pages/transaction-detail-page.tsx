@@ -1,0 +1,317 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  ArrowLeft,
+  CalendarDays,
+  Layers3,
+  Mic2,
+  Pencil,
+  Tag,
+  Trash2,
+} from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { StatePanel } from '@/components/feedback/state-panel'
+import { KindBadge, KindIcon } from '@/components/finance/financial-visuals'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { categoryLabelForId } from '@/features/categories/category-presentation'
+import { useCategories } from '@/features/categories/hooks/use-categories'
+import { transactionApi } from '@/features/transactions/api/transaction-api'
+import { TransactionForm } from '@/features/transactions/components/transaction-form'
+import {
+  formatEventDate,
+  transactionSourceLabel,
+} from '@/features/transactions/transaction-presentation'
+import { ApiError } from '@/lib/api/api-client'
+import { financialAmountStyle } from '@/lib/money/financial-display'
+import { formatBrl } from '@/lib/money/format-brl'
+import { queryKeys } from '@/lib/query/query-client'
+import type { TransactionRequest } from '@/types/api'
+
+function protectedMutationMessage(action: 'edited' | 'deleted'): string {
+  return `This transaction is protected by reimbursement data and cannot be ${action}. Manage its reimbursement context in Owed to Me.`
+}
+
+function mutationErrorMessage(error: Error | null, action: 'edited' | 'deleted'): string | undefined {
+  if (!error) return undefined
+  if (error instanceof ApiError && error.status === 409) {
+    return protectedMutationMessage(action)
+  }
+  if (error instanceof ApiError) return error.message
+  return action === 'edited'
+    ? 'The transaction could not be updated.'
+    : 'The transaction could not be deleted.'
+}
+
+export function TransactionDetailPage() {
+  const { transactionId = '' } = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const categories = useCategories()
+  const [editing, setEditing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const detailQuery = useQuery({
+    queryKey: queryKeys.transactions.detail(transactionId),
+    queryFn: ({ signal }) => transactionApi.get(transactionId, signal),
+    enabled: Boolean(transactionId),
+  })
+
+  async function invalidateAfterEdit() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(transactionId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.lists }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+    ])
+  }
+
+  async function invalidateAfterDelete() {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.detail(transactionId),
+        refetchType: 'none',
+      }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.lists }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+    ])
+  }
+
+  const updateMutation = useMutation({
+    mutationFn: (request: TransactionRequest) => transactionApi.update(transactionId, request),
+    onSuccess: async () => {
+      setEditing(false)
+      setFeedback('Transaction updated successfully.')
+      await invalidateAfterEdit()
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => transactionApi.delete(transactionId),
+    onSuccess: async () => {
+      await invalidateAfterDelete()
+      navigate('/transactions', {
+        replace: true,
+        state: { feedback: 'Transaction deleted successfully.' },
+      })
+    },
+  })
+
+  if (detailQuery.isPending) {
+    return (
+      <section className="space-y-6" aria-label="Loading transaction detail">
+        <div className="h-9 w-40 animate-pulse rounded-xl bg-muted" />
+        <div className="h-72 animate-pulse rounded-2xl bg-muted" />
+      </section>
+    )
+  }
+
+  if (detailQuery.error instanceof ApiError && detailQuery.error.status === 404) {
+    return (
+      <section className="space-y-5">
+        <Link to="/transactions" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+          <ArrowLeft className="size-4" aria-hidden="true" /> Back to transactions
+        </Link>
+        <StatePanel title="Transaction not found" description="This transaction is unavailable or no longer exists." />
+      </section>
+    )
+  }
+
+  if (detailQuery.error || !detailQuery.data) {
+    return (
+      <section className="space-y-5">
+        <Link to="/transactions" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+          <ArrowLeft className="size-4" aria-hidden="true" /> Back to transactions
+        </Link>
+        <StatePanel tone="error" title="Transaction unavailable" description="The transaction could not be loaded. Try again in a moment." />
+        <Button type="button" variant="outline" onClick={() => void detailQuery.refetch()}>Try again</Button>
+      </section>
+    )
+  }
+
+  const transaction = detailQuery.data
+  const amount = financialAmountStyle(transaction.kind)
+  const isReceipt = transaction.kind === 'REIMBURSEMENT_RECEIPT'
+  const categoryName = categories.isPending
+    ? 'Loading category…'
+    : categoryLabelForId(categories.data, transaction.categoryId)
+
+  return (
+    <section className="space-y-6">
+      <Link to="/transactions" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+        <ArrowLeft className="size-4" aria-hidden="true" /> Back to transactions
+      </Link>
+
+      {feedback && (
+        <Alert>
+          <AlertDescription>{feedback}</AlertDescription>
+        </Alert>
+      )}
+
+      <Card className={isReceipt ? 'border-reimbursement/30 bg-[linear-gradient(145deg,var(--card),var(--reimbursement-soft))]' : undefined}>
+        <CardContent className="grid gap-6 py-2 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+          <KindIcon kind={transaction.kind} className="size-12" />
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <KindBadge kind={transaction.kind} />
+              {transaction.installmentCount > 1 && (
+                <span className="rounded-full bg-muted px-2.5 py-1 text-[0.68rem] font-semibold text-muted-foreground">
+                  {transaction.installmentCount} installments
+                </span>
+              )}
+            </div>
+            <h1 className="font-heading text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">{transaction.description}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{categoryName}</p>
+          </div>
+          <p className={`tabular-nums font-heading text-3xl font-semibold tracking-[-0.04em] md:text-right ${amount.className}`}>
+            {amount.prefix}{formatBrl(transaction.amount)}
+          </p>
+        </CardContent>
+      </Card>
+
+      {categories.isError && (
+        <p className="text-sm text-muted-foreground" role="status">Category details are temporarily unavailable.</p>
+      )}
+
+      {isReceipt && (
+        <Alert className="border-reimbursement/25 bg-reimbursement-soft/50">
+          <AlertDescription>
+            This reimbursement receipt is managed through <Link to="/owed" className="font-semibold">Owed to Me</Link>. It is money returned to you, not earned income.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Transaction details</CardTitle>
+            <CardDescription>The facts recorded for this financial event.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-muted/45 p-4">
+                <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Tag className="size-4" aria-hidden="true" /> Category</dt>
+                <dd className="mt-2 font-semibold">{categoryName}</dd>
+              </div>
+              <div className="rounded-xl bg-muted/45 p-4">
+                <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><CalendarDays className="size-4" aria-hidden="true" /> Event date</dt>
+                <dd className="mt-2 font-semibold">{formatEventDate(transaction.eventDate)}</dd>
+              </div>
+              <div className="rounded-xl bg-muted/45 p-4">
+                <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Mic2 className="size-4" aria-hidden="true" /> Recorded via</dt>
+                <dd className="mt-2 font-semibold">{transactionSourceLabel(transaction.source)}</dd>
+              </div>
+              <div className="rounded-xl bg-muted/45 p-4">
+                <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Layers3 className="size-4" aria-hidden="true" /> Kind</dt>
+                <dd className="mt-2 font-semibold"><KindBadge kind={transaction.kind} /></dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+
+        {!isReceipt && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Actions</CardTitle>
+              <CardDescription>Update or remove this ordinary transaction.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setFeedback(null)
+                  setConfirmingDelete(false)
+                  deleteMutation.reset()
+                  updateMutation.reset()
+                  setEditing(true)
+                }}
+              >
+                <Pencil aria-hidden="true" /> Edit transaction
+              </Button>
+              {!confirmingDelete ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => {
+                    setEditing(false)
+                    updateMutation.reset()
+                    setConfirmingDelete(true)
+                  }}
+                >
+                  <Trash2 aria-hidden="true" /> Delete transaction
+                </Button>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-destructive/25 bg-destructive/5 p-4">
+                  <p className="font-semibold text-destructive">Delete this transaction?</p>
+                  <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" variant="ghost" onClick={() => setConfirmingDelete(false)}>Cancel</Button>
+                    <Button type="button" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+                      {deleteMutation.isPending ? 'Deleting…' : 'Confirm delete'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {mutationErrorMessage(deleteMutation.error, 'deleted') && (
+                <Alert variant="destructive">
+                  <AlertDescription>{mutationErrorMessage(deleteMutation.error, 'deleted')}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {editing && !isReceipt && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Edit transaction</CardTitle>
+            <CardDescription>Changes are validated and recalculated by TalkTally on the server.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TransactionForm
+              key={`detail-edit-${transaction.id}`}
+              categories={categories.data ?? []}
+              categoriesPending={categories.isPending}
+              categoriesError={categories.isError}
+              initialTransaction={transaction}
+              isSubmitting={updateMutation.isPending}
+              serverError={mutationErrorMessage(updateMutation.error, 'edited')}
+              submitLabel="Save changes"
+              onSubmit={(request) => updateMutation.mutate(request)}
+              onCancel={() => {
+                updateMutation.reset()
+                setEditing(false)
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {transaction.occurrences.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Installments</CardTitle>
+            <CardDescription>Authoritative schedule reported by TalkTally.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ol className="divide-y">
+              {transaction.occurrences.map((occurrence) => (
+                <li key={occurrence.sequenceNumber} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="font-semibold">{occurrence.sequenceNumber} / {transaction.installmentCount}</p>
+                    <p className="text-sm text-muted-foreground">{formatEventDate(occurrence.effectiveDate)}</p>
+                  </div>
+                  <span className="tabular-nums font-heading font-semibold">{formatBrl(occurrence.amount)}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+    </section>
+  )
+}

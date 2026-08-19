@@ -43,7 +43,10 @@ public class SpringAiGoogleAssistantAdapter implements ChatAssistantPort {
 			AssistantInput input) {
 		try {
 			String response = chatClient.prompt()
-					.system(systemPrompt)
+					.system(system -> system
+							.text(systemPrompt)
+							.param("ordinaryTransactionCategories",
+									OrdinaryTransactionCategoryVocabulary.systemPromptGuidance()))
 					.user(input.message())
 					.tools(approvedTools)
 					.toolContext(AssistantToolContext.create(actorId, source))

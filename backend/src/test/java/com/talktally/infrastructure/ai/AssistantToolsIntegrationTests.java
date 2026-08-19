@@ -1,11 +1,19 @@
 package com.talktally.infrastructure.ai;
 
+import com.talktally.application.assistant.AssistantInput;
 import com.talktally.application.person.ResolveOrCreatePersonUseCase;
 import com.talktally.domain.TransactionSource;
 import com.talktally.domain.UserId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +31,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -94,6 +103,45 @@ class AssistantToolsIntegrationTests {
 	}
 
 	@Test
+	void adapterDeliversResolvedAuthoritativeCategoryGuidanceToTheModel() {
+		CapturingChatModel chatModel = new CapturingChatModel();
+		var adapter = new SpringAiGoogleAssistantAdapter(
+				ChatClient.builder(chatModel).build(),
+				new ClassPathResource("prompts/talktally-system.txt"),
+				transactionTools,
+				reportingTools,
+				reimbursementTools);
+
+		adapter.respond(
+				USER_A,
+				TransactionSource.ASSISTANT_TEXT,
+				new AssistantInput("Describe the available categories."));
+
+		String deliveredPrompt = chatModel.prompt.getSystemMessage().getText();
+		assertFalse(deliveredPrompt.contains("{ordinaryTransactionCategories}"));
+		OrdinaryTransactionCategoryVocabulary.codes()
+				.forEach(code -> assertTrue(deliveredPrompt.contains(code)));
+		assertTrue(deliveredPrompt.contains("explicitly names a valid category"));
+		assertTrue(deliveredPrompt.contains("coffee at a cafe"));
+		assertTrue(deliveredPrompt.contains("Never use REIMBURSEMENT")
+				|| deliveredPrompt.contains("REIMBURSEMENT is reserved"));
+		assertFalse(deliveredPrompt.contains(USER_A.value().toString()));
+	}
+
+	@Test
+	void aiVocabularyMatchesAuthoritativeOrdinaryBuiltInCatalog() {
+		List<String> ordinaryBuiltInCodes = jdbcTemplate.queryForList("""
+				SELECT code
+				FROM category
+				WHERE built_in = TRUE
+				  AND allowed_kind IN ('INCOME', 'EXPENSE', 'ANY')
+				ORDER BY id
+				""", String.class);
+
+		assertEquals(ordinaryBuiltInCodes, OrdinaryTransactionCategoryVocabulary.codes());
+	}
+
+	@Test
 	void missingOrInvalidToolContextFailsInternallyWithoutWriting() {
 		assertThrows(IllegalStateException.class,
 				() -> recordExpense("No actor", "10.00", "GROCERIES", 1,
@@ -107,20 +155,18 @@ class AssistantToolsIntegrationTests {
 	}
 
 	@Test
-	void recordsExpenseAndIncomeThroughCategoryCodeResolution() {
-		ToolResult expense = recordExpense("Groceries", "42.00", "groceries", 1, context(USER_A));
+	void recordsExplicitFoodDiningGroceriesAndIncomeCategories() {
+		ToolResult dining = recordExpense("Dinner", "45.67", "FOOD_DINING", 1, context(USER_A));
+		ToolResult groceries = recordExpense("Supermarket", "42.00", "groceries", 1, context(USER_A));
 		ToolResult income = transactionTools.recordTransaction(
 				"INCOME", "Salary", new BigDecimal("1000.00"), "SALARY", DATE, 1, context(USER_A));
 
-		assertEquals(ToolResultStatus.SUCCESS, expense.status());
+		assertEquals(ToolResultStatus.SUCCESS, dining.status());
+		assertEquals(ToolResultStatus.SUCCESS, groceries.status());
 		assertEquals(ToolResultStatus.SUCCESS, income.status());
-		assertEquals(2, transactionCount());
-		assertEquals(1, jdbcTemplate.queryForObject("""
-				SELECT COUNT(*)
-				FROM financial_transaction transaction
-				JOIN category ON category.id = transaction.category_id
-				WHERE category.code = 'GROCERIES'
-				""", Integer.class));
+		assertEquals(3, transactionCount());
+		assertEquals("FOOD_DINING", categoryCodeFor("Dinner"));
+		assertEquals("GROCERIES", categoryCodeFor("Supermarket"));
 	}
 
 	@Test
@@ -143,6 +189,30 @@ class AssistantToolsIntegrationTests {
 				""", String.class));
 		assertEquals(DATE, jdbcTemplate.queryForObject(
 				"SELECT event_date FROM financial_transaction", LocalDate.class));
+	}
+
+	@Test
+	void invalidOrUnavailableCategoryIsRejectedWithoutPersistence() {
+		ToolResult result = transactionTools.recordTransaction(
+				"EXPENSE", "Unknown category", new BigDecimal("10.00"),
+				"NOT_A_CATEGORY", DATE, 1, context(USER_A));
+
+		assertEquals(ToolResultStatus.REJECTED, result.status());
+		assertEquals(0, transactionCount());
+	}
+
+	@Test
+	void ordinaryToolRejectsReimbursementCategoryAndReceiptKind() {
+		ToolResult reservedCategory = transactionTools.recordTransaction(
+				"EXPENSE", "Improper reimbursement category", new BigDecimal("10.00"),
+				"REIMBURSEMENT", DATE, 1, context(USER_A));
+		ToolResult reservedKind = transactionTools.recordTransaction(
+				"REIMBURSEMENT_RECEIPT", "Improper receipt", new BigDecimal("10.00"),
+				"OTHER", DATE, 1, context(USER_A));
+
+		assertEquals(ToolResultStatus.REJECTED, reservedCategory.status());
+		assertEquals(ToolResultStatus.REJECTED, reservedKind.status());
+		assertEquals(0, transactionCount());
 	}
 
 	@Test
@@ -361,6 +431,15 @@ class AssistantToolsIntegrationTests {
 				userId, TransactionSource.ASSISTANT_TEXT));
 	}
 
+	private String categoryCodeFor(String description) {
+		return jdbcTemplate.queryForObject("""
+				SELECT category.code
+				FROM financial_transaction transaction
+				JOIN category ON category.id = transaction.category_id
+				WHERE transaction.description = ?
+				""", String.class, description);
+	}
+
 	private int transactionCount() {
 		return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM financial_transaction", Integer.class);
 	}
@@ -382,6 +461,18 @@ class AssistantToolsIntegrationTests {
 				INSERT INTO app_user (id, email, password_hash, display_name)
 				VALUES (?, ?, ?, ?)
 				""", id, email, "hash", "Tool User");
+	}
+
+	private static final class CapturingChatModel implements ChatModel {
+
+		private Prompt prompt;
+
+		@Override
+		public ChatResponse call(Prompt prompt) {
+			this.prompt = prompt;
+			return new ChatResponse(List.of(
+					new Generation(new AssistantMessage("[COMPLETED] Ready."))));
+		}
 	}
 
 	@TestConfiguration(proxyBeanMethods = false)

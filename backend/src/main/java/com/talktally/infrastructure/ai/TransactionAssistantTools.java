@@ -54,7 +54,7 @@ public class TransactionAssistantTools {
 			@ToolParam(description = "INCOME or EXPENSE", required = false) String kind,
 			@ToolParam(description = "A concise transaction description", required = false) String description,
 			@ToolParam(description = "Positive BRL amount", required = false) BigDecimal amount,
-			@ToolParam(description = "Stable category code such as GROCERIES, SALARY, or OTHER", required = false) String categoryCode,
+			@ToolParam(description = OrdinaryTransactionCategoryVocabulary.TOOL_PARAMETER_DESCRIPTION, required = false) String categoryCode,
 			@ToolParam(description = "Financial event date in ISO-8601 format; defaults to today", required = false) LocalDate eventDate,
 			@ToolParam(description = "Number of monthly installments; defaults to 1", required = false) Integer installmentCount,
 			ToolContext toolContext) {

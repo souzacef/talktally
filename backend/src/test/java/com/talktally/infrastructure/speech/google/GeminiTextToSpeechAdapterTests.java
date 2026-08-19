@@ -34,8 +34,7 @@ class GeminiTextToSpeechAdapterTests {
 
 		assertEquals(MODEL, client.model);
 		assertEquals(
-				"Read the following response naturally and clearly, without changing its wording:\n"
-						+ assistantText,
+				GeminiTextToSpeechAdapter.SYNTHESIS_INSTRUCTION + assistantText,
 				client.prompt);
 		assertEquals(List.of("AUDIO"), client.config.responseModalities().orElseThrow());
 		assertEquals(
@@ -47,6 +46,31 @@ class GeminiTextToSpeechAdapterTests {
 		assertTrue(client.config.tools().isEmpty());
 		assertEquals("audio/wav", speech.contentType());
 		assertTrue(WavPcm16Encoder.isWav(speech.audio()));
+	}
+
+	@Test
+	void synthesisInstructionPreservesBrlAndFactualIdentity() {
+		String instruction = GeminiTextToSpeechAdapter.SYNTHESIS_INSTRUCTION;
+
+		assertTrue(instruction.contains("R$ and BRL identify Brazilian reais"));
+		assertTrue(instruction.contains("Brazilian reais, never dollars"));
+		assertTrue(instruction.contains("do not translate, substitute, add, omit, or reinterpret"));
+		assertTrue(instruction.contains(
+				"currencies, amounts, numbers, dates, names, category labels, and units of measurement"));
+		assertTrue(instruction.contains("Preserve its wording and semantic meaning"));
+	}
+
+	@Test
+	void factualTextIsSentVerbatimWithoutApplicationIdentityOrTools() {
+		CapturingTtsClient client = new CapturingTtsClient(response(PCM, "audio/pcm"));
+		String assistantText = "Ana Silva owes you R$ 60.00 for lunch on August 18, 2026.";
+
+		adapter(client).synthesize(assistantText);
+
+		assertTrue(client.prompt.endsWith(assistantText));
+		assertTrue(client.config.tools().isEmpty());
+		assertFalse(client.prompt.contains("UserId"));
+		assertFalse(client.prompt.contains("TransactionSource"));
 	}
 
 	@Test

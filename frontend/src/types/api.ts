@@ -9,6 +9,7 @@ export type DecimalInput = string
 
 export type TransactionKind = 'EXPENSE' | 'INCOME' | 'REIMBURSEMENT_RECEIPT'
 export type UserManagedTransactionKind = Exclude<TransactionKind, 'REIMBURSEMENT_RECEIPT'>
+export type CategoryAllowedKind = TransactionKind | 'ANY'
 export type TransactionSource = 'MANUAL' | 'ASSISTANT_TEXT' | 'VOICE'
 export type ReimbursementStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID'
 export type AssistantStatus = 'COMPLETED' | 'NEEDS_CLARIFICATION'
@@ -55,6 +56,14 @@ export interface TransactionRequest {
   categoryId: UUID
   eventDate: IsoDate
   installmentCount: number
+}
+
+export interface Category {
+  id: UUID
+  code: string
+  displayName: string
+  allowedKind: CategoryAllowedKind
+  builtIn: boolean
 }
 
 export interface TransactionOccurrenceResponse {

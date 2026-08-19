@@ -20,6 +20,9 @@ export const queryClient = new QueryClient({
 })
 
 export const queryKeys = {
+  categories: {
+    all: ['categories'] as const,
+  },
   dashboard: {
     all: ['dashboard'] as const,
     summary: (from: string, to: string) => ['dashboard', 'summary', from, to] as const,

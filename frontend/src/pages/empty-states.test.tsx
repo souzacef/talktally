@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   personSummary: vi.fn(),
   reimbursementList: vi.fn(),
   recordPayment: vi.fn(),
+  categoryList: vi.fn(),
 }))
 
 vi.mock('@/features/dashboard/hooks/use-dashboard', () => ({
@@ -24,6 +25,9 @@ vi.mock('@/features/dashboard/hooks/use-dashboard', () => ({
 }))
 vi.mock('@/features/transactions/api/transaction-api', () => ({
   transactionApi: { list: mocks.transactionList },
+}))
+vi.mock('@/features/categories/api/category-api', () => ({
+  categoryApi: { list: mocks.categoryList },
 }))
 vi.mock('@/features/reimbursements/api/people-api', () => ({
   peopleApi: { list: mocks.peopleList, reimbursementSummary: mocks.personSummary },
@@ -74,6 +78,7 @@ describe('real-data empty states', () => {
       data: { from: '2026-03-01', to: '2026-08-31', currency: 'BRL', buckets: [] },
     })
     mocks.transactionList.mockResolvedValue(emptyPage)
+    mocks.categoryList.mockResolvedValue([])
     mocks.peopleList.mockResolvedValue([])
     mocks.reimbursementList.mockResolvedValue(emptyPage)
   })

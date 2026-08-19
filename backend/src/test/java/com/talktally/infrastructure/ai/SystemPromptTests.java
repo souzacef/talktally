@@ -27,6 +27,54 @@ class SystemPromptTests {
 	}
 
 	@Test
+	void currentEnglishMessageStronglyRequiresAnEnglishResponse() throws IOException {
+		String prompt = promptTemplate().toLowerCase();
+
+		assertTrue(prompt.contains("language of the current user message"));
+		assertTrue(prompt.contains("current user message is in english, respond in english"));
+		assertTrue(prompt.contains("not the language of tool messages or tool data"));
+	}
+
+	@Test
+	void currentPortugueseMessageStronglyRequiresAPortugueseResponse() throws IOException {
+		String prompt = promptTemplate().toLowerCase();
+
+		assertTrue(prompt.contains("if it is in portuguese, respond in portuguese"));
+		assertTrue(prompt.contains("only when the current user message explicitly requests it"));
+	}
+
+	@Test
+	void normalResponsesMustHideInternalIdentifiers() throws IOException {
+		String prompt = promptTemplate().toLowerCase();
+
+		assertTrue(prompt.contains("never expose uuids"));
+		assertTrue(prompt.contains("claim ids"));
+		assertTrue(prompt.contains("persistence ids"));
+		assertTrue(prompt.contains("normal user-facing responses"));
+	}
+
+	@Test
+	void normalResponsesMustUseFriendlyCategoryNames() throws IOException {
+		String prompt = promptTemplate();
+
+		assertTrue(prompt.contains("Never expose raw stable category codes such as FOOD_DINING"));
+		assertTrue(prompt.contains("friendly natural-language category name"));
+		assertTrue(prompt.contains("Food & Dining"));
+		assertTrue(prompt.contains("Stable category codes remain internal tool inputs"));
+	}
+
+	@Test
+	void noOpenReimbursementRequiresClarificationWithoutIncomeSuggestion() throws IOException {
+		String prompt = promptTemplate().toLowerCase();
+
+		assertTrue(prompt.contains("no matching open claim"));
+		assertTrue(prompt.contains("no reimbursement was applied"));
+		assertTrue(prompt.contains("clarify what the payment represents"));
+		assertTrue(prompt.contains("do not suggest or record it as ordinary income"));
+		assertTrue(prompt.contains("while clarification is required, do not call a write tool"));
+	}
+
+	@Test
 	void effectivePromptAndToolMetadataExposeAuthoritativeOrdinaryCategories() throws IOException {
 		String template = promptTemplate();
 		assertTrue(template.contains("{ordinaryTransactionCategories}"));

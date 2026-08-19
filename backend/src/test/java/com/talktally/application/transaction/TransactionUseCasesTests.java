@@ -651,6 +651,11 @@ class TransactionUseCasesTests {
 					.filter(entry -> entry.ownerId() == null || entry.ownerId().equals(ownerId))
 					.map(CategoryEntry::metadata);
 		}
+
+		@Override
+		public List<com.talktally.domain.CategoryDefinition> findAllVisible(UserId ownerId) {
+			return List.of();
+		}
 	}
 
 	private record CategoryEntry(UserId ownerId, CategoryMetadata metadata) {

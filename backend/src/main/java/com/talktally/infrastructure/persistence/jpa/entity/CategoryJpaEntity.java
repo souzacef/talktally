@@ -21,8 +21,14 @@ public class CategoryJpaEntity {
 	@Column(name = "code", nullable = false, length = 50)
 	private String code;
 
+	@Column(name = "display_name", nullable = false, length = 80)
+	private String displayName;
+
 	@Column(name = "allowed_kind", nullable = false, length = 32)
 	private String allowedKind;
+
+	@Column(name = "built_in", nullable = false)
+	private boolean builtIn;
 
 	protected CategoryJpaEntity() {
 	}
@@ -39,7 +45,15 @@ public class CategoryJpaEntity {
 		return code;
 	}
 
+	public String getDisplayName() {
+		return displayName;
+	}
+
 	public String getAllowedKind() {
 		return allowedKind;
+	}
+
+	public boolean isBuiltIn() {
+		return builtIn;
 	}
 }

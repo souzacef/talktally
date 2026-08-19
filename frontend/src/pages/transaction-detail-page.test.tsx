@@ -40,6 +40,7 @@ const expense: TransactionResponse = {
   currency: 'BRL',
   categoryId: 'food-category-id',
   eventDate: '2026-08-19',
+  firstOccurrenceDate: '2026-08-19',
   source: 'ASSISTANT_TEXT',
   installmentCount: 1,
   occurrences: [
@@ -121,12 +122,30 @@ describe('TransactionDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Dinner with friends' })).toBeInTheDocument()
     expect(screen.getAllByText('Expense').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Food and dining').length).toBeGreaterThan(0)
-    expect(screen.getByText('Aug 19, 2026')).toBeInTheDocument()
+    expect(screen.getAllByText('Aug 19, 2026')).toHaveLength(1)
+    expect(screen.queryByText('First cash-flow date')).not.toBeInTheDocument()
     expect(screen.getByText('Assistant')).toBeInTheDocument()
     expect(screen.getByText(/R\$\s*30,06/)).toBeInTheDocument()
     expect(screen.queryByText(/1 installment/i)).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('food-category-id')
     expect(document.body.textContent).not.toContain('transaction-42')
+  })
+
+  it('shows a distinct first cash-flow date for a delayed one-installment transaction', async () => {
+    mocks.get.mockResolvedValue({
+      ...expense,
+      firstOccurrenceDate: '2026-09-10',
+      occurrences: [
+        { sequenceNumber: 1, effectiveDate: '2026-09-10', amount: '30.06', currency: 'BRL' },
+      ],
+    })
+    renderDetail()
+
+    expect(await screen.findByText('Event date')).toBeInTheDocument()
+    expect(screen.getByText('Aug 19, 2026')).toBeInTheDocument()
+    expect(screen.getByText('First cash-flow date')).toBeInTheDocument()
+    expect(screen.getByText('Sep 10, 2026')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Installments' })).not.toBeInTheDocument()
   })
 
   it.each<[TransactionSource, string]>([
@@ -143,6 +162,7 @@ describe('TransactionDetailPage', () => {
   it('renders the authoritative multi-installment response without regenerating values', async () => {
     mocks.get.mockResolvedValue({
       ...expense,
+      firstOccurrenceDate: '2026-08-31',
       installmentCount: 3,
       occurrences: [
         { sequenceNumber: 1, effectiveDate: '2026-08-10', amount: '10.01', currency: 'BRL' },
@@ -155,6 +175,7 @@ describe('TransactionDetailPage', () => {
     const installments = await screen.findByText('Authoritative schedule reported by TalkTally.')
     const card = installments.closest<HTMLElement>('[data-slot="card"]')
     expect(card).not.toBeNull()
+    expect(screen.getByText('Aug 31, 2026')).toBeInTheDocument()
     expect(within(card!).getByText('1 / 3')).toBeInTheDocument()
     expect(within(card!).getByText('Aug 10, 2026')).toBeInTheDocument()
     expect(within(card!).getByText(/R\$\s*10,01/)).toBeInTheDocument()
@@ -182,7 +203,12 @@ describe('TransactionDetailPage', () => {
 
     await waitFor(() => expect(mocks.update).toHaveBeenCalledWith(
       'transaction-42',
-      expect.objectContaining({ description: 'Dinner with friends', amount: '30.06' }),
+      expect.objectContaining({
+        description: 'Dinner with friends',
+        amount: '30.06',
+        eventDate: '2026-08-19',
+        firstOccurrenceDate: '2026-08-19',
+      }),
     ))
     expect(await screen.findByText('Transaction updated successfully.')).toBeInTheDocument()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.transactions.detail('transaction-42') })

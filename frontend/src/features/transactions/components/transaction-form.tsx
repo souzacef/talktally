@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +33,7 @@ interface FormValues {
   amount: string
   categoryId: string
   eventDate: string
+  firstOccurrenceDate: string
   installmentCount: string
 }
 
@@ -43,12 +44,14 @@ function normalizeAmount(amount: string): string {
 }
 
 function initialValues(transaction?: TransactionResponse): FormValues {
+  const eventDate = transaction?.eventDate ?? new Date().toISOString().slice(0, 10)
   return {
     kind: transaction?.kind === 'INCOME' ? 'INCOME' : 'EXPENSE',
     description: transaction?.description ?? '',
     amount: transaction ? String(transaction.amount) : '',
     categoryId: transaction?.categoryId ?? '',
-    eventDate: transaction?.eventDate ?? new Date().toISOString().slice(0, 10),
+    eventDate,
+    firstOccurrenceDate: transaction?.firstOccurrenceDate ?? eventDate,
     installmentCount: String(transaction?.installmentCount ?? 1),
   }
 }
@@ -86,6 +89,7 @@ export function TransactionForm({
   onCancel,
 }: TransactionFormProps) {
   const [values, setValues] = useState(() => initialValues(initialTransaction))
+  const firstOccurrenceDateChanged = useRef(Boolean(initialTransaction))
   const [clientError, setClientError] = useState<string | null>(null)
   const compatibleCategories = ordinaryCategoriesForKind(categories, values.kind)
 
@@ -115,6 +119,7 @@ export function TransactionForm({
       amount: normalizeAmount(values.amount),
       categoryId: values.categoryId,
       eventDate: values.eventDate,
+      firstOccurrenceDate: values.firstOccurrenceDate || values.eventDate,
       installmentCount: Number(values.installmentCount),
     })
   }
@@ -183,15 +188,51 @@ export function TransactionForm({
             ))}
           </select>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 xl:col-start-1">
           <Label htmlFor="managed-transaction-date">Event date</Label>
           <Input
             id="managed-transaction-date"
             type="date"
             value={values.eventDate}
-            onChange={(event) => setValues((current) => ({ ...current, eventDate: event.target.value }))}
+            aria-describedby="managed-transaction-date-help"
+            onChange={(event) => {
+              const eventDate = event.target.value
+              setValues((current) => ({
+                ...current,
+                eventDate,
+                firstOccurrenceDate: firstOccurrenceDateChanged.current
+                  ? current.firstOccurrenceDate
+                  : eventDate,
+              }))
+            }}
             required
           />
+          <p id="managed-transaction-date-help" className="text-xs text-muted-foreground">
+            When the transaction happened.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="managed-transaction-first-occurrence-date">First cash-flow date</Label>
+          <Input
+            id="managed-transaction-first-occurrence-date"
+            type="date"
+            value={values.firstOccurrenceDate}
+            aria-describedby="managed-transaction-first-occurrence-date-help"
+            onChange={(event) => {
+              firstOccurrenceDateChanged.current = true
+              setValues((current) => ({
+                ...current,
+                firstOccurrenceDate: event.target.value,
+              }))
+            }}
+            required
+          />
+          <p
+            id="managed-transaction-first-occurrence-date-help"
+            className="text-xs text-muted-foreground"
+          >
+            When this transaction first affects your cash flow.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="managed-transaction-installments">Installments</Label>

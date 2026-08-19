@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { TransactionForm } from '@/features/transactions/components/transaction-form'
-import type { Category } from '@/types/api'
+import type { Category, TransactionResponse } from '@/types/api'
 
 const categories: Category[] = [
   { id: 'expense', code: 'FOOD_DINING', displayName: 'Food and dining', allowedKind: 'EXPENSE', builtIn: true },
@@ -11,14 +11,33 @@ const categories: Category[] = [
   { id: 'receipt', code: 'REIMBURSEMENT', displayName: 'Reimbursement', allowedKind: 'REIMBURSEMENT_RECEIPT', builtIn: true },
 ]
 
-function renderForm(onSubmit = vi.fn()) {
+const existingTransaction: TransactionResponse = {
+  id: 'transaction-1',
+  kind: 'EXPENSE',
+  description: 'Laptop',
+  amount: '100.00',
+  currency: 'BRL',
+  categoryId: 'expense',
+  eventDate: '2026-08-19',
+  firstOccurrenceDate: '2026-09-10',
+  source: 'MANUAL',
+  installmentCount: 3,
+  occurrences: [
+    { sequenceNumber: 1, effectiveDate: '2026-09-10', amount: '33.33', currency: 'BRL' },
+    { sequenceNumber: 2, effectiveDate: '2026-10-10', amount: '33.33', currency: 'BRL' },
+    { sequenceNumber: 3, effectiveDate: '2026-11-10', amount: '33.34', currency: 'BRL' },
+  ],
+}
+
+function renderForm(onSubmit = vi.fn(), initialTransaction?: TransactionResponse) {
   render(
     <TransactionForm
       categories={categories}
       categoriesPending={false}
       categoriesError={false}
+      initialTransaction={initialTransaction}
       isSubmitting={false}
-      submitLabel="Create transaction"
+      submitLabel={initialTransaction ? 'Save changes' : 'Create transaction'}
       onSubmit={onSubmit}
       onCancel={vi.fn()}
     />,
@@ -31,6 +50,69 @@ function optionNames(select: HTMLElement): string[] {
 }
 
 describe('TransactionForm', () => {
+  it('initializes a new first cash-flow date to the current event date', () => {
+    renderForm()
+
+    const eventDate = screen.getByLabelText('Event date')
+    const firstOccurrenceDate = screen.getByLabelText('First cash-flow date')
+    expect(eventDate).not.toHaveValue('')
+    expect(firstOccurrenceDate).toHaveValue((eventDate as HTMLInputElement).value)
+    expect(eventDate).toHaveAccessibleDescription('When the transaction happened.')
+    expect(firstOccurrenceDate).toHaveAccessibleDescription(
+      'When this transaction first affects your cash flow.',
+    )
+  })
+
+  it('keeps the first cash-flow date synchronized until it is independently changed', () => {
+    renderForm()
+
+    fireEvent.change(screen.getByLabelText('Event date'), {
+      target: { value: '2026-08-20' },
+    })
+
+    expect(screen.getByLabelText('First cash-flow date')).toHaveValue('2026-08-20')
+  })
+
+  it('stops synchronization after an independent first cash-flow date change and accepts an earlier date', async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderForm(onSubmit)
+    fireEvent.change(screen.getByLabelText('First cash-flow date'), {
+      target: { value: '2026-07-31' },
+    })
+    fireEvent.change(screen.getByLabelText('Event date'), {
+      target: { value: '2026-08-20' },
+    })
+    await user.type(screen.getByLabelText('Description'), 'Advance payment')
+    await user.type(screen.getByLabelText('Amount'), '10.00')
+    await user.selectOptions(screen.getByLabelText('Category'), 'expense')
+    await user.click(screen.getByRole('button', { name: 'Create transaction' }))
+
+    expect(screen.getByLabelText('First cash-flow date')).toHaveValue('2026-07-31')
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      eventDate: '2026-08-20',
+      firstOccurrenceDate: '2026-07-31',
+    }))
+  })
+
+  it('initializes edit state from the response and preserves its first occurrence in the full request', async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderForm(onSubmit, existingTransaction)
+
+    expect(screen.getByLabelText('Event date')).toHaveValue('2026-08-19')
+    expect(screen.getByLabelText('First cash-flow date')).toHaveValue('2026-09-10')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      kind: 'EXPENSE',
+      description: 'Laptop',
+      amount: '100.00',
+      categoryId: 'expense',
+      eventDate: '2026-08-19',
+      firstOccurrenceDate: '2026-09-10',
+      installmentCount: 3,
+    })
+  })
+
   it('shows EXPENSE and ANY categories only for an expense', () => {
     renderForm()
 
@@ -75,6 +157,7 @@ describe('TransactionForm', () => {
       amount: '12.34',
       categoryId: 'expense',
       eventDate: '2026-08-19',
+      firstOccurrenceDate: '2026-08-19',
       installmentCount: 1,
     })
     const request = onSubmit.mock.calls[0]?.[0]

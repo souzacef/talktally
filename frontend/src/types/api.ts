@@ -55,6 +55,7 @@ export interface TransactionRequest {
   amount: DecimalInput
   categoryId: UUID
   eventDate: IsoDate
+  firstOccurrenceDate?: IsoDate | null
   installmentCount: number
 }
 
@@ -81,6 +82,7 @@ export interface TransactionResponse {
   currency: 'BRL'
   categoryId: UUID
   eventDate: IsoDate
+  firstOccurrenceDate: IsoDate
   source: TransactionSource
   installmentCount: number
   occurrences: TransactionOccurrenceResponse[]
@@ -128,6 +130,7 @@ export interface CreateReimbursementRequest {
   amount: DecimalInput
   categoryId: UUID
   eventDate: IsoDate
+  firstOccurrenceDate?: IsoDate | null
   installmentCount: number
   personId: UUID
   amountOwed?: DecimalInput | null

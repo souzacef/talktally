@@ -197,6 +197,12 @@ export function TransactionDetailPage() {
                 <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><CalendarDays className="size-4" aria-hidden="true" /> Event date</dt>
                 <dd className="mt-2 font-semibold">{formatEventDate(transaction.eventDate)}</dd>
               </div>
+              {transaction.firstOccurrenceDate !== transaction.eventDate && (
+                <div className="rounded-xl bg-muted/45 p-4">
+                  <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><CalendarDays className="size-4" aria-hidden="true" /> First cash-flow date</dt>
+                  <dd className="mt-2 font-semibold">{formatEventDate(transaction.firstOccurrenceDate)}</dd>
+                </div>
+              )}
               <div className="rounded-xl bg-muted/45 p-4">
                 <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Mic2 className="size-4" aria-hidden="true" /> Recorded via</dt>
                 <dd className="mt-2 font-semibold">{transactionSourceLabel(transaction.source)}</dd>

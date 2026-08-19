@@ -23,6 +23,7 @@ const request: TransactionRequest = {
   amount: '12.34',
   categoryId: 'category-food',
   eventDate: '2026-08-19',
+  firstOccurrenceDate: '2026-08-19',
   installmentCount: 1,
 }
 

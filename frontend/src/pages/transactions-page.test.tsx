@@ -42,6 +42,7 @@ const expense: TransactionResponse = {
   currency: 'BRL',
   categoryId: 'food-id',
   eventDate: '2026-08-19',
+  firstOccurrenceDate: '2026-08-19',
   source: 'MANUAL',
   installmentCount: 1,
   occurrences: [
@@ -57,6 +58,7 @@ const reimbursement: TransactionResponse = {
   currency: 'BRL',
   categoryId: 'reimbursement-id',
   eventDate: '2026-08-19',
+  firstOccurrenceDate: '2026-08-19',
   source: 'VOICE',
   installmentCount: 3,
   occurrences: [
@@ -156,6 +158,7 @@ describe('TransactionsPage category catalog integration', () => {
       amount: '45.67',
       categoryId: 'food-id',
       eventDate: '2026-08-19',
+      firstOccurrenceDate: '2026-08-19',
       installmentCount: 1,
     }))
     expect(await screen.findByText('Transaction created successfully.')).toBeInTheDocument()
@@ -181,6 +184,7 @@ describe('TransactionsPage category catalog integration', () => {
         amount: '12.34',
         categoryId: 'food-id',
         eventDate: '2026-08-19',
+        firstOccurrenceDate: '2026-08-19',
         installmentCount: 1,
       },
     ))

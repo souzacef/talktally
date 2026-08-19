@@ -40,6 +40,7 @@ const recentTransaction: TransactionResponse = {
   currency: 'BRL',
   categoryId: 'food-category-id',
   eventDate: '2026-08-19',
+  firstOccurrenceDate: '2026-08-19',
   source: 'MANUAL',
   installmentCount: 1,
   occurrences: [

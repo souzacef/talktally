@@ -82,6 +82,38 @@ class GeminiSpeechToTextAdapterTests {
 	}
 
 	@Test
+	void codeSwitchedBrazilianCurrencyTermsAreReturnedWithoutPostProcessing() {
+		String providerTranscript = "Record an expense of twelve reais and thirty-four centavos for coffee today.";
+		CapturingChatModel model = new CapturingChatModel(providerTranscript);
+
+		String transcript = new GeminiSpeechToTextAdapter(model).transcribe(
+				new SpeechAudioInput(AUDIO, "audio/wav"));
+
+		assertEquals(providerTranscript, transcript);
+	}
+
+	@Test
+	void promptPreservesSpokenLanguageAndSemanticIdentity() {
+		String prompt = GeminiSpeechToTextAdapter.TRANSCRIPTION_PROMPT;
+
+		assertTrue(prompt.contains("Preserve the language spoken"));
+		assertTrue(prompt.contains("code-switching"));
+		assertTrue(prompt.contains("never translate"));
+		assertTrue(prompt.contains("currencies"));
+		assertTrue(prompt.contains("units of measurement"));
+		assertTrue(prompt.contains("proper names"));
+		assertTrue(prompt.contains("merchant and person names"));
+		assertTrue(prompt.contains("category words"));
+		assertTrue(prompt.contains("dates"));
+		assertTrue(prompt.contains("reais or centavos"));
+		assertTrue(prompt.contains("never render them as dollars or cents"));
+		assertTrue(prompt.contains("number words to digits"));
+		assertTrue(prompt.contains("meaning is unchanged"));
+		assertTrue(prompt.contains("infer intent"));
+		assertTrue(prompt.contains("perform any requested action"));
+	}
+
+	@Test
 	void blankProviderTranscriptionIsRejectedAsInvalidAudio() {
 		CapturingChatModel model = new CapturingChatModel("  \n");
 
@@ -112,7 +144,11 @@ class GeminiSpeechToTextAdapterTests {
 		assertNull(model.prompt.getOptions());
 		assertTrue(model.prompt.getSystemMessages().isEmpty());
 		assertTrue(message.getText().contains("Return only the transcription"));
-		assertTrue(message.getText().contains("Do not answer the speech"));
+		assertTrue(message.getText().contains("Do not answer, interpret, infer intent"));
+		assertTrue(List.of(
+				"TalkTally", "UserId", "TransactionSource", "application tools", "category code")
+				.stream()
+				.noneMatch(message.getText()::contains));
 	}
 
 	@Test

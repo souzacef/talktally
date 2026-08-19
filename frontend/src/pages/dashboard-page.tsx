@@ -9,6 +9,8 @@ import { KindIcon } from '@/components/finance/financial-visuals'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { categoryLabelForId } from '@/features/categories/category-presentation'
 import { useCategories } from '@/features/categories/hooks/use-categories'
+import { useAuth } from '@/features/auth/auth-provider'
+import { dashboardGreeting } from '@/features/auth/display-name'
 import { peopleApi } from '@/features/reimbursements/api/people-api'
 import { transactionApi } from '@/features/transactions/api/transaction-api'
 import { useVoiceAssistant } from '@/features/assistant/hooks/use-voice-assistant'
@@ -29,6 +31,7 @@ const CashFlowChart = lazy(() => import('@/components/dashboard/cash-flow-chart'
 const recentParams = { page: 0, size: 5 } as const
 
 export function DashboardPage() {
+  const { user } = useAuth()
   const period = currentMonthRange()
   const history = trailingSixMonthRange()
   const summary = useFinancialSummary(period.from, period.to)
@@ -55,7 +58,7 @@ export function DashboardPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="mb-1 text-xs font-bold tracking-[0.14em] text-primary uppercase">This month</p>
-          <h1 className="font-heading text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">Hello</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">{dashboardGreeting(user?.displayName)}</h1>
           <p className="mt-2 text-muted-foreground">Here is the story your money is telling.</p>
         </div>
         <p className="rounded-full border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs">

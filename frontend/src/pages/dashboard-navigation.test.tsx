@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from '@/pages/dashboard-page'
+import { AuthProvider } from '@/features/auth/auth-provider'
+import { AuthSession } from '@/lib/auth/auth-session'
 import type { TransactionResponse } from '@/types/api'
 
 const mocks = vi.hoisted(() => ({
@@ -45,17 +47,26 @@ const recentTransaction: TransactionResponse = {
   ],
 }
 
-function renderDashboard() {
+function renderDashboard(displayName = 'Carlos Eduardo Freire de Souza') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const session = new AuthSession(window.sessionStorage)
+  session.setAuthenticated('test-token', {
+    userId: 'user-id',
+    email: 'carlos@example.com',
+    displayName,
+    defaultCurrency: 'BRL',
+  })
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <Routes>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/transactions" element={<p>All transactions destination</p>} />
-          <Route path="/transactions/:transactionId" element={<p>Transaction detail destination</p>} />
-        </Routes>
-      </MemoryRouter>
+      <AuthProvider session={session} privateQueryClient={client}>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/transactions" element={<p>All transactions destination</p>} />
+            <Route path="/transactions/:transactionId" element={<p>Transaction detail destination</p>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
     </QueryClientProvider>,
   )
   return userEvent.setup()
@@ -104,6 +115,12 @@ describe('Dashboard Recent Activity navigation', () => {
 
     await user.click(await screen.findByRole('link', { name: 'View all' }))
     expect(screen.getByText('All transactions destination')).toBeInTheDocument()
+  })
+
+  it('greets the authenticated user by first name', () => {
+    renderDashboard()
+
+    expect(screen.getByRole('heading', { name: 'Hello, Carlos!' })).toBeInTheDocument()
   })
 
   it('shows the friendly category and navigates a recent transaction to detail', async () => {

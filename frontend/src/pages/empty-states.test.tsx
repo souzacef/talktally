@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { OwedPage } from '@/pages/owed-page'
 import { TransactionsPage } from '@/pages/transactions-page'
+import { AuthProvider } from '@/features/auth/auth-provider'
+import { AuthSession } from '@/lib/auth/auth-session'
 
 const mocks = vi.hoisted(() => ({
   summary: vi.fn(),
@@ -38,9 +40,18 @@ vi.mock('@/features/reimbursements/api/reimbursement-api', () => ({
 
 function renderPage(page: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  const session = new AuthSession(window.sessionStorage)
+  session.setAuthenticated('test-token', {
+    userId: 'user-id',
+    email: 'user@example.com',
+    displayName: 'User',
+    defaultCurrency: 'BRL',
+  })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>{page}</MemoryRouter>
+      <AuthProvider session={session} privateQueryClient={client}>
+        <MemoryRouter>{page}</MemoryRouter>
+      </AuthProvider>
     </QueryClientProvider>,
   )
 }

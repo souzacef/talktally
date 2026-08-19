@@ -97,6 +97,7 @@ class ReimbursementApiIntegrationTests {
 				.andExpect(jsonPath("$.expense.kind").value("EXPENSE"))
 				.andExpect(jsonPath("$.expense.amount").value(174.0))
 				.andExpect(jsonPath("$.expense.source").value("MANUAL"))
+				.andExpect(jsonPath("$.expense.firstOccurrenceDate").value("2026-08-14"))
 				.andExpect(jsonPath("$.expense.occurrences", hasSize(3)))
 				.andExpect(jsonPath("$.expense.occurrences[0].amount").value(58.0))
 				.andExpect(jsonPath("$.expense.occurrences[1].amount").value(58.0))
@@ -125,6 +126,9 @@ class ReimbursementApiIntegrationTests {
 				.andExpect(jsonPath("$.kind").value("REIMBURSEMENT_RECEIPT"))
 				.andExpect(jsonPath("$.kind").value(org.hamcrest.Matchers.not("INCOME")))
 				.andExpect(jsonPath("$.amount").value(50.0))
+				.andExpect(jsonPath("$.eventDate").value("2026-08-20"))
+				.andExpect(jsonPath("$.firstOccurrenceDate").value("2026-08-20"))
+				.andExpect(jsonPath("$.occurrences[0].effectiveDate").value("2026-08-20"))
 				.andExpect(jsonPath("$.source").value("MANUAL"));
 
 		recordPayment(token, claimId, "124.00", "2026-08-24")
@@ -147,6 +151,29 @@ class ReimbursementApiIntegrationTests {
 
 		assertProtected(token, expenseId);
 		assertProtected(token, receiptId);
+	}
+
+	@Test
+	void reimbursableExpensePropagatesAnExplicitFirstOccurrenceDate() throws Exception {
+		UUID personId = createPerson(tokenA, "Delayed Person");
+
+		mockMvc.perform(post("/api/v1/reimbursements")
+						.header("Authorization", bearer(tokenA))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(reimbursementJson(
+								"Delayed dinner",
+								"90.00",
+								GROCERIES,
+								personId,
+								null,
+								"2026-09-10",
+								3)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.expense.eventDate").value("2026-08-14"))
+				.andExpect(jsonPath("$.expense.firstOccurrenceDate").value("2026-09-10"))
+				.andExpect(jsonPath("$.expense.occurrences[0].effectiveDate").value("2026-09-10"))
+				.andExpect(jsonPath("$.expense.occurrences[1].effectiveDate").value("2026-10-10"))
+				.andExpect(jsonPath("$.expense.occurrences[2].effectiveDate").value("2026-11-10"));
 	}
 
 	@Test
@@ -382,13 +409,34 @@ class ReimbursementApiIntegrationTests {
 			UUID personId,
 			String amountOwed,
 			int installments) {
+		return reimbursementJson(
+				description,
+				amount,
+				categoryId,
+				personId,
+				amountOwed,
+				null,
+				installments);
+	}
+
+	private static String reimbursementJson(
+			String description,
+			String amount,
+			UUID categoryId,
+			UUID personId,
+			String amountOwed,
+			String firstOccurrenceDate,
+			int installments) {
 		String owedField = amountOwed == null ? "" : ",\n  \"amountOwed\": " + amountOwed;
+		String firstOccurrenceDateField = firstOccurrenceDate == null
+				? ""
+				: ",\n  \"firstOccurrenceDate\": \"" + firstOccurrenceDate + "\"";
 		return """
 				{
 				  "description": "%s",
 				  "amount": %s,
 				  "categoryId": "%s",
-				  "eventDate": "2026-08-14",
+				  "eventDate": "2026-08-14"%s,
 				  "installmentCount": %d,
 				  "personId": "%s"%s,
 				  "note": "Dinner"
@@ -397,6 +445,7 @@ class ReimbursementApiIntegrationTests {
 				description,
 				amount,
 				categoryId,
+				firstOccurrenceDateField,
 				installments,
 				personId,
 				owedField);

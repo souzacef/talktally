@@ -45,6 +45,7 @@ public class CreateTransactionUseCase {
 				input.amount(),
 				input.categoryId(),
 				input.eventDate(),
+				input.firstOccurrenceDate(),
 				input.installmentCount());
 		FinancialTransaction transaction = TransactionAggregateFactory.create(
 				actorId, source, validated);

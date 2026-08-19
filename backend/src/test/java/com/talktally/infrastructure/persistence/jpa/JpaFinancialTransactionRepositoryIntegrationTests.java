@@ -103,6 +103,7 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 		assertFinanciallyEqual(original, loaded);
 		assertEquals(Currency.getInstance("BRL"), loaded.totalAmount().currency());
 		assertEquals(EVENT_DATE, loaded.eventDate());
+		assertEquals(EVENT_DATE, loaded.firstOccurrenceDate());
 		assertEquals(EVENT_DATE, loaded.occurrences().getFirst().effectiveDate());
 	}
 
@@ -124,6 +125,7 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 		FinancialTransaction loaded = repository.findById(USER_A, original.id()).orElseThrow();
 
 		assertFinanciallyEqual(original, loaded);
+		assertEquals(firstEffectiveDate, loaded.firstOccurrenceDate());
 		assertEquals(
 				List.of(
 						Money.brl(new BigDecimal("33.33")),

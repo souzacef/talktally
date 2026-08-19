@@ -172,6 +172,10 @@ public final class FinancialTransaction {
 		return eventDate;
 	}
 
+	public LocalDate firstOccurrenceDate() {
+		return occurrences.getFirst().effectiveDate();
+	}
+
 	public TransactionSource source() {
 		return source;
 	}

@@ -245,6 +245,7 @@ class PostgreSqlProductionIntegrationTests {
 						new BigDecimal("174.00"),
 						GROCERIES,
 						AUGUST_14,
+						null,
 						1,
 						person.personId(),
 						new BigDecimal("174.00"),

@@ -44,15 +44,32 @@ class InstallmentScheduleTests {
 	@Test
 	void createsMonthlyEffectiveDatesFromOriginalAnchorDate() {
 		List<TransactionOccurrence> schedule = InstallmentSchedule.allocate(
-				Money.brl(new BigDecimal("30.00")),
-				3,
+				Money.brl(new BigDecimal("50.00")),
+				5,
 				LocalDate.of(2026, 1, 31));
 
 		assertEquals(
 				List.of(
 						LocalDate.of(2026, 1, 31),
 						LocalDate.of(2026, 2, 28),
-						LocalDate.of(2026, 3, 31)),
+						LocalDate.of(2026, 3, 31),
+						LocalDate.of(2026, 4, 30),
+						LocalDate.of(2026, 5, 31)),
+				schedule.stream().map(TransactionOccurrence::effectiveDate).toList());
+	}
+
+	@Test
+	void preservesTheOriginalMonthEndAnchorAcrossALeapYear() {
+		List<TransactionOccurrence> schedule = InstallmentSchedule.allocate(
+				Money.brl(new BigDecimal("30.00")),
+				3,
+				LocalDate.of(2024, 1, 31));
+
+		assertEquals(
+				List.of(
+						LocalDate.of(2024, 1, 31),
+						LocalDate.of(2024, 2, 29),
+						LocalDate.of(2024, 3, 31)),
 				schedule.stream().map(TransactionOccurrence::effectiveDate).toList());
 	}
 

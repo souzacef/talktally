@@ -12,5 +12,6 @@ public record CreateTransactionInput(
 		BigDecimal amount,
 		CategoryId categoryId,
 		LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		int installmentCount) {
 }

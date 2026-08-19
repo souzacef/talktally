@@ -92,6 +92,7 @@ public class ReimbursementAssistantTools {
 			@ToolParam(description = "Positive total expense amount in BRL", required = false) BigDecimal amount,
 			@ToolParam(description = "Stable expense category code; defaults to OTHER", required = false) String categoryCode,
 			@ToolParam(description = "Expense date; defaults to today", required = false) LocalDate eventDate,
+			@ToolParam(description = "Date when the first occurrence affects cash flow. Defaults to eventDate when omitted.", required = false) LocalDate firstOccurrenceDate,
 			@ToolParam(description = "Monthly installment count; defaults to 1", required = false) Integer installmentCount,
 			@ToolParam(description = "Name of the person who owes the reimbursement", required = false) String personName,
 			@ToolParam(description = "Amount owed in BRL; defaults to the full expense amount", required = false) BigDecimal amountOwed,
@@ -122,6 +123,7 @@ public class ReimbursementAssistantTools {
 							amount,
 							categoryId,
 							eventDate == null ? LocalDate.now(clock) : eventDate,
+							firstOccurrenceDate,
 							installmentCount == null ? 1 : installmentCount,
 							person.personId(),
 							amountOwed,
@@ -134,6 +136,7 @@ public class ReimbursementAssistantTools {
 							output.expense().amount(),
 							output.claim().remainingAmount(),
 							output.claim().currency(),
+							output.expense().firstOccurrenceDate(),
 							output.expense().installmentCount()));
 		}
 		catch (CategoryCodeNotFoundException exception) {
@@ -298,6 +301,7 @@ public class ReimbursementAssistantTools {
 			BigDecimal expenseAmount,
 			BigDecimal amountOwed,
 			String currency,
+			LocalDate firstOccurrenceDate,
 			int installmentCount) {
 	}
 

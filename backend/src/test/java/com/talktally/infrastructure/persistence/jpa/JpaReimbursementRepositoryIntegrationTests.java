@@ -381,6 +381,7 @@ class JpaReimbursementRepositoryIntegrationTests {
 				amount,
 				GROCERIES,
 				EVENT_DATE,
+				null,
 				3,
 				personId,
 				amountOwed,

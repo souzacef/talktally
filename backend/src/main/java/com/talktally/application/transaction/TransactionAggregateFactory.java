@@ -19,16 +19,6 @@ final class TransactionAggregateFactory {
 			TransactionSource source,
 			ValidatedTransactionInput input) {
 		try {
-			if (input.installmentCount() == 1) {
-				return FinancialTransaction.createSingleOccurrence(
-						actorId,
-						input.kind(),
-						input.description(),
-						input.amount(),
-						input.categoryId(),
-						input.eventDate(),
-						source);
-			}
 			return FinancialTransaction.createInstallment(
 					actorId,
 					input.kind(),
@@ -38,7 +28,7 @@ final class TransactionAggregateFactory {
 					input.eventDate(),
 					source,
 					input.installmentCount(),
-					input.eventDate());
+					input.firstOccurrenceDate());
 		}
 		catch (IllegalArgumentException exception) {
 			throw invalidFinancialRules(exception);
@@ -49,10 +39,8 @@ final class TransactionAggregateFactory {
 			FinancialTransaction existing,
 			ValidatedTransactionInput input) {
 		try {
-			List<TransactionOccurrence> occurrences = input.installmentCount() == 1
-					? List.of(new TransactionOccurrence(1, input.eventDate(), input.amount()))
-					: InstallmentSchedule.allocate(
-							input.amount(), input.installmentCount(), input.eventDate());
+			List<TransactionOccurrence> occurrences = InstallmentSchedule.allocate(
+					input.amount(), input.installmentCount(), input.firstOccurrenceDate());
 
 			return FinancialTransaction.reconstruct(
 					existing.id(),

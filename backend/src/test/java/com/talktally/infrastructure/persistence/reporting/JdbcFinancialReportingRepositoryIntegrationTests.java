@@ -105,7 +105,8 @@ class JdbcFinancialReportingRepositoryIntegrationTests {
 	}
 
 	@Test
-	void installmentReportingUsesEffectiveDatesAcrossSummaryCategoryAndMonths() {
+	void delayedInstallmentReportingUsesOccurrenceEffectiveDatesInsteadOfEventDate() {
+		LocalDate firstOccurrenceDate = LocalDate.of(2026, 9, 10);
 		FinancialTransaction installment = FinancialTransaction.createInstallment(
 				USER_A,
 				TransactionKind.EXPENSE,
@@ -115,27 +116,33 @@ class JdbcFinancialReportingRepositoryIntegrationTests {
 				AUGUST_14,
 				TransactionSource.MANUAL,
 				3,
-				AUGUST_14);
+				firstOccurrenceDate);
 		transactionRepository.save(installment);
 
+		var august = reportingRepository.summarize(
+				USER_A,
+				LocalDate.of(2026, 8, 1),
+				LocalDate.of(2026, 8, 31));
 		var september = reportingRepository.summarize(
 				USER_A,
 				LocalDate.of(2026, 9, 1),
 				LocalDate.of(2026, 9, 30));
 		var full = reportingRepository.summarize(
 				USER_A,
-				LocalDate.of(2026, 8, 1),
-				LocalDate.of(2026, 10, 31));
+				LocalDate.of(2026, 9, 1),
+				LocalDate.of(2026, 11, 30));
 		var category = categoryUseCase.execute(
 				USER_A,
-				LocalDate.of(2026, 8, 1),
-				LocalDate.of(2026, 10, 31),
+				LocalDate.of(2026, 9, 1),
+				LocalDate.of(2026, 11, 30),
 				TransactionKind.EXPENSE);
 		var monthly = monthlyUseCase.execute(
 				USER_A,
-				LocalDate.of(2026, 8, 1),
-				LocalDate.of(2026, 10, 31));
+				LocalDate.of(2026, 9, 1),
+				LocalDate.of(2026, 11, 30));
 
+		assertEquals(new BigDecimal("0.00"), august.expenses());
+		assertEquals(0, august.occurrenceCount());
 		assertEquals(new BigDecimal("33.33"), september.expenses());
 		assertEquals(1, september.occurrenceCount());
 		assertEquals(1, september.transactionCount());

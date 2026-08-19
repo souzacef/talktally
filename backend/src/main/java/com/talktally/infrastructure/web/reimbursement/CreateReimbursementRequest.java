@@ -23,6 +23,7 @@ public record CreateReimbursementRequest(
 		@Digits(integer = 17, fraction = 2) BigDecimal amount,
 		@NotNull UUID categoryId,
 		@NotNull LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		@Min(1) @Max(TransactionPolicy.MAX_INSTALLMENTS) int installmentCount,
 		@NotNull UUID personId,
 		@DecimalMin(value = "0.00", inclusive = false)
@@ -35,6 +36,7 @@ public record CreateReimbursementRequest(
 				amount,
 				categoryId == null ? null : CategoryId.from(categoryId),
 				eventDate,
+				firstOccurrenceDate,
 				installmentCount,
 				personId == null ? null : PersonId.from(personId),
 				amountOwed,

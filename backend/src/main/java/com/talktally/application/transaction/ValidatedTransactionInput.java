@@ -12,5 +12,6 @@ record ValidatedTransactionInput(
 		Money amount,
 		CategoryId categoryId,
 		LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		int installmentCount) {
 }

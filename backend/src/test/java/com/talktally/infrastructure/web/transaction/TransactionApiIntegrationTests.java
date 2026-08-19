@@ -164,6 +164,7 @@ class TransactionApiIntegrationTests {
 				.andExpect(jsonPath("$.currency").value("BRL"))
 				.andExpect(jsonPath("$.categoryId").value(GROCERIES.toString()))
 				.andExpect(jsonPath("$.eventDate").value(EVENT_DATE.toString()))
+				.andExpect(jsonPath("$.firstOccurrenceDate").value(EVENT_DATE.toString()))
 				.andExpect(jsonPath("$.source").value("MANUAL"))
 				.andExpect(jsonPath("$.installmentCount").value(1))
 				.andExpect(jsonPath("$.ownerId").doesNotExist())
@@ -188,6 +189,72 @@ class TransactionApiIntegrationTests {
 				.andExpect(jsonPath("$.occurrences[2].sequenceNumber").value(3))
 				.andExpect(jsonPath("$.occurrences[2].effectiveDate").value("2026-10-14"))
 				.andExpect(jsonPath("$.occurrences[2].amount").value(33.34));
+	}
+
+	@Test
+	void createAndUpdateAcceptExplicitFirstOccurrenceDateAndOmissionUsesEventDate() throws Exception {
+		MvcResult explicitNull = create(tokenA, """
+				{
+				  "kind": "EXPENSE",
+				  "description": "Explicit null schedule",
+				  "amount": 10.00,
+				  "categoryId": "%s",
+				  "eventDate": "2026-08-14",
+				  "firstOccurrenceDate": null,
+				  "installmentCount": 1
+				}
+				""".formatted(GROCERIES));
+		assertEquals(
+				EVENT_DATE.toString(),
+				JsonPath.read(
+						explicitNull.getResponse().getContentAsString(),
+						"$.firstOccurrenceDate"));
+
+		LocalDate firstOccurrenceDate = LocalDate.of(2026, 9, 10);
+		UUID id = locationId(create(tokenA, transactionJson(
+				"EXPENSE",
+				"Delayed laptop",
+				"100.00",
+				SHOPPING,
+				EVENT_DATE,
+				firstOccurrenceDate,
+				3)));
+
+		mockMvc.perform(get("/api/v1/transactions/{id}", id)
+						.header("Authorization", bearer(tokenA)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.eventDate").value("2026-08-14"))
+				.andExpect(jsonPath("$.firstOccurrenceDate").value("2026-09-10"))
+				.andExpect(jsonPath("$.occurrences[0].effectiveDate").value("2026-09-10"))
+				.andExpect(jsonPath("$.occurrences[1].effectiveDate").value("2026-10-10"))
+				.andExpect(jsonPath("$.occurrences[2].effectiveDate").value("2026-11-10"));
+
+		LocalDate updatedFirstOccurrenceDate = LocalDate.of(2026, 10, 5);
+		mockMvc.perform(put("/api/v1/transactions/{id}", id)
+						.header("Authorization", bearer(tokenA))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(transactionJson(
+								"EXPENSE",
+								"Rescheduled laptop",
+								"100.00",
+								SHOPPING,
+								EVENT_DATE,
+								updatedFirstOccurrenceDate,
+								3)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.firstOccurrenceDate").value("2026-10-05"))
+				.andExpect(jsonPath("$.occurrences[0].effectiveDate").value("2026-10-05"));
+
+		LocalDate updatedEventDate = EVENT_DATE.plusDays(5);
+		mockMvc.perform(put("/api/v1/transactions/{id}", id)
+						.header("Authorization", bearer(tokenA))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(transactionJson(
+								"EXPENSE", "Reset schedule", "100.00", SHOPPING, updatedEventDate, 3)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.eventDate").value(updatedEventDate.toString()))
+				.andExpect(jsonPath("$.firstOccurrenceDate").value(updatedEventDate.toString()))
+				.andExpect(jsonPath("$.occurrences[0].effectiveDate").value(updatedEventDate.toString()));
 	}
 
 	@Test
@@ -341,6 +408,7 @@ class TransactionApiIntegrationTests {
 						new BigDecimal("10.00"),
 						CategoryId.from(GROCERIES),
 						EVENT_DATE,
+						null,
 						1));
 		UUID id = created.transactionId().value();
 		String update = transactionJson(
@@ -477,13 +545,34 @@ class TransactionApiIntegrationTests {
 			UUID categoryId,
 			LocalDate eventDate,
 			int installmentCount) {
+		return transactionJson(
+				kind,
+				description,
+				amount,
+				categoryId,
+				eventDate,
+				null,
+				installmentCount);
+	}
+
+	private static String transactionJson(
+			String kind,
+			String description,
+			String amount,
+			UUID categoryId,
+			LocalDate eventDate,
+			LocalDate firstOccurrenceDate,
+			int installmentCount) {
+		String firstOccurrenceDateField = firstOccurrenceDate == null
+				? ""
+				: ",\n  \"firstOccurrenceDate\": \"" + firstOccurrenceDate + "\"";
 		return """
 				{
 				  "kind": "%s",
 				  "description": "%s",
 				  "amount": %s,
 				  "categoryId": "%s",
-				  "eventDate": "%s",
+				  "eventDate": "%s"%s,
 				  "installmentCount": %d
 				}
 				""".formatted(
@@ -492,6 +581,7 @@ class TransactionApiIntegrationTests {
 				amount,
 				categoryId,
 				eventDate,
+				firstOccurrenceDateField,
 				installmentCount);
 	}
 }

@@ -56,6 +56,7 @@ public class TransactionAssistantTools {
 			@ToolParam(description = "Positive BRL amount", required = false) BigDecimal amount,
 			@ToolParam(description = OrdinaryTransactionCategoryVocabulary.TOOL_PARAMETER_DESCRIPTION, required = false) String categoryCode,
 			@ToolParam(description = "Financial event date in ISO-8601 format; defaults to today", required = false) LocalDate eventDate,
+			@ToolParam(description = "Date when the first occurrence affects cash flow. Defaults to eventDate when omitted.", required = false) LocalDate firstOccurrenceDate,
 			@ToolParam(description = "Number of monthly installments; defaults to 1", required = false) Integer installmentCount,
 			ToolContext toolContext) {
 		UserId actorId = AssistantToolContext.requireActor(toolContext);
@@ -83,6 +84,7 @@ public class TransactionAssistantTools {
 							amount,
 							categoryId,
 							eventDate == null ? LocalDate.now(clock) : eventDate,
+							firstOccurrenceDate,
 							installmentCount == null ? 1 : installmentCount));
 			return ToolResult.success("Transaction recorded successfully.", summarize(output));
 		}
@@ -158,6 +160,7 @@ public class TransactionAssistantTools {
 				output.amount(),
 				output.currency(),
 				output.eventDate(),
+				output.firstOccurrenceDate(),
 				output.installmentCount());
 	}
 
@@ -167,6 +170,7 @@ public class TransactionAssistantTools {
 			BigDecimal amount,
 			String currency,
 			LocalDate eventDate,
+			LocalDate firstOccurrenceDate,
 			int installmentCount) {
 	}
 

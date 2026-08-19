@@ -24,6 +24,7 @@ public record TransactionRequest(
 		@Digits(integer = 17, fraction = 2) BigDecimal amount,
 		@NotNull UUID categoryId,
 		@NotNull LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		@Min(1) @Max(TransactionPolicy.MAX_INSTALLMENTS) int installmentCount) {
 
 	CreateTransactionInput toCreateInput() {
@@ -33,6 +34,7 @@ public record TransactionRequest(
 				amount,
 				categoryId == null ? null : CategoryId.from(categoryId),
 				eventDate,
+				firstOccurrenceDate,
 				installmentCount);
 	}
 
@@ -43,6 +45,7 @@ public record TransactionRequest(
 				amount,
 				categoryId == null ? null : CategoryId.from(categoryId),
 				eventDate,
+				firstOccurrenceDate,
 				installmentCount);
 	}
 }

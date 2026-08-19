@@ -15,6 +15,7 @@ import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -159,7 +160,7 @@ class AssistantToolsIntegrationTests {
 		ToolResult dining = recordExpense("Dinner", "45.67", "FOOD_DINING", 1, context(USER_A));
 		ToolResult groceries = recordExpense("Supermarket", "42.00", "groceries", 1, context(USER_A));
 		ToolResult income = transactionTools.recordTransaction(
-				"INCOME", "Salary", new BigDecimal("1000.00"), "SALARY", DATE, 1, context(USER_A));
+				"INCOME", "Salary", new BigDecimal("1000.00"), "SALARY", DATE, null, 1, context(USER_A));
 
 		assertEquals(ToolResultStatus.SUCCESS, dining.status());
 		assertEquals(ToolResultStatus.SUCCESS, groceries.status());
@@ -175,6 +176,7 @@ class AssistantToolsIntegrationTests {
 				"EXPENSE",
 				"Uncertain category",
 				new BigDecimal("19.90"),
+				null,
 				null,
 				null,
 				1,
@@ -195,7 +197,7 @@ class AssistantToolsIntegrationTests {
 	void invalidOrUnavailableCategoryIsRejectedWithoutPersistence() {
 		ToolResult result = transactionTools.recordTransaction(
 				"EXPENSE", "Unknown category", new BigDecimal("10.00"),
-				"NOT_A_CATEGORY", DATE, 1, context(USER_A));
+				"NOT_A_CATEGORY", DATE, null, 1, context(USER_A));
 
 		assertEquals(ToolResultStatus.REJECTED, result.status());
 		assertEquals(0, transactionCount());
@@ -205,10 +207,10 @@ class AssistantToolsIntegrationTests {
 	void ordinaryToolRejectsReimbursementCategoryAndReceiptKind() {
 		ToolResult reservedCategory = transactionTools.recordTransaction(
 				"EXPENSE", "Improper reimbursement category", new BigDecimal("10.00"),
-				"REIMBURSEMENT", DATE, 1, context(USER_A));
+				"REIMBURSEMENT", DATE, null, 1, context(USER_A));
 		ToolResult reservedKind = transactionTools.recordTransaction(
 				"REIMBURSEMENT_RECEIPT", "Improper receipt", new BigDecimal("10.00"),
-				"OTHER", DATE, 1, context(USER_A));
+				"OTHER", DATE, null, 1, context(USER_A));
 
 		assertEquals(ToolResultStatus.REJECTED, reservedCategory.status());
 		assertEquals(ToolResultStatus.REJECTED, reservedKind.status());
@@ -218,9 +220,9 @@ class AssistantToolsIntegrationTests {
 	@Test
 	void missingTransactionAmountOrDescriptionClarifiesWithoutPersistence() {
 		ToolResult missingAmount = transactionTools.recordTransaction(
-				"EXPENSE", "Pizza", null, "FOOD_DINING", DATE, 1, context(USER_A));
+				"EXPENSE", "Pizza", null, "FOOD_DINING", DATE, null, 1, context(USER_A));
 		ToolResult missingDescription = transactionTools.recordTransaction(
-				"EXPENSE", " ", new BigDecimal("50.00"), "FOOD_DINING", DATE, 1, context(USER_A));
+				"EXPENSE", " ", new BigDecimal("50.00"), "FOOD_DINING", DATE, null, 1, context(USER_A));
 
 		assertEquals(ToolResultStatus.NEEDS_CLARIFICATION, missingAmount.status());
 		assertEquals(ToolResultStatus.NEEDS_CLARIFICATION, missingDescription.status());
@@ -232,10 +234,82 @@ class AssistantToolsIntegrationTests {
 		ToolResult result = recordExpense("Laptop", "100.00", "SHOPPING", 3, context(USER_A));
 
 		assertEquals(ToolResultStatus.SUCCESS, result.status());
+		assertEquals(
+				DATE,
+				((TransactionAssistantTools.TransactionSummary) result.data()).firstOccurrenceDate());
 		assertEquals(3, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM transaction_occurrence", Integer.class));
 		assertEquals(0, new BigDecimal("100.00").compareTo(jdbcTemplate.queryForObject(
 				"SELECT SUM(amount) FROM transaction_occurrence", BigDecimal.class)));
+	}
+
+	@Test
+	void transactionAndReimbursableExpenseToolsPropagateExplicitFirstOccurrenceDates() {
+		LocalDate firstOccurrenceDate = LocalDate.of(2026, 9, 10);
+		ToolResult transaction = transactionTools.recordTransaction(
+				"EXPENSE",
+				"Delayed laptop",
+				new BigDecimal("100.00"),
+				"SHOPPING",
+				DATE,
+				firstOccurrenceDate,
+				3,
+				context(USER_A));
+		ToolResult reimbursement = reimbursementTools.recordReimbursableExpense(
+				"Delayed dinner",
+				new BigDecimal("90.00"),
+				"FOOD_DINING",
+				DATE,
+				firstOccurrenceDate,
+				3,
+				"Jon Doe",
+				null,
+				null,
+				context(USER_A));
+
+		assertEquals(ToolResultStatus.SUCCESS, transaction.status());
+		assertEquals(
+				firstOccurrenceDate,
+				((TransactionAssistantTools.TransactionSummary) transaction.data()).firstOccurrenceDate());
+		assertEquals(ToolResultStatus.SUCCESS, reimbursement.status());
+		assertEquals(
+				firstOccurrenceDate,
+				((ReimbursementAssistantTools.ReimbursableExpenseData) reimbursement.data())
+						.firstOccurrenceDate());
+		assertEquals(
+				List.of(
+						firstOccurrenceDate,
+						firstOccurrenceDate.plusMonths(1),
+						firstOccurrenceDate.plusMonths(2)),
+				occurrenceDatesFor("Delayed laptop"));
+		assertEquals(
+				List.of(
+						firstOccurrenceDate,
+						firstOccurrenceDate.plusMonths(1),
+						firstOccurrenceDate.plusMonths(2)),
+				occurrenceDatesFor("Delayed dinner"));
+	}
+
+	@Test
+	void schedulingToolParametersAreOptionalAndDescribeTheEventDateDefault() {
+		String expectedDescription =
+				"Date when the first occurrence affects cash flow. Defaults to eventDate when omitted.";
+
+		for (String toolMethod : List.of("recordTransaction", "recordReimbursableExpense")) {
+			Class<?> toolClass = toolMethod.equals("recordTransaction")
+					? TransactionAssistantTools.class
+					: ReimbursementAssistantTools.class;
+			List<ToolParam> matchingParameters = Arrays.stream(toolClass.getDeclaredMethods())
+					.filter(method -> method.getName().equals(toolMethod))
+					.flatMap(method -> Arrays.stream(method.getParameters()))
+					.map(parameter -> parameter.getAnnotation(ToolParam.class))
+					.filter(annotation -> annotation != null
+							&& annotation.description().equals(expectedDescription))
+					.toList();
+
+			assertEquals(1, matchingParameters.size());
+			assertFalse(matchingParameters.getFirst().required());
+		}
 	}
 
 	@Test
@@ -246,6 +320,10 @@ class AssistantToolsIntegrationTests {
 				"Pizza", "174.00", "FOOD_DINING", 3, "jon   doe", null, context(USER_A));
 
 		assertEquals(ToolResultStatus.SUCCESS, result.status());
+		assertEquals(
+				DATE,
+				((ReimbursementAssistantTools.ReimbursableExpenseData) result.data())
+						.firstOccurrenceDate());
 		assertEquals(1, personCount());
 		assertEquals(1, claimCount());
 		assertEquals("ASSISTANT_TEXT", jdbcTemplate.queryForObject(
@@ -268,9 +346,9 @@ class AssistantToolsIntegrationTests {
 	@Test
 	void missingReimbursableAmountOrPersonClarifiesWithoutAnyWrite() {
 		ToolResult missingAmount = reimbursementTools.recordReimbursableExpense(
-				"Pizza", null, "FOOD_DINING", DATE, 87, "Jon Doe", null, null, context(USER_A));
+				"Pizza", null, "FOOD_DINING", DATE, null, 87, "Jon Doe", null, null, context(USER_A));
 		ToolResult missingPerson = reimbursementTools.recordReimbursableExpense(
-				"Pizza", new BigDecimal("174.00"), "FOOD_DINING", DATE, 3, null, null, null, context(USER_A));
+				"Pizza", new BigDecimal("174.00"), "FOOD_DINING", DATE, null, 3, null, null, null, context(USER_A));
 
 		assertEquals(ToolResultStatus.NEEDS_CLARIFICATION, missingAmount.status());
 		assertEquals(ToolResultStatus.NEEDS_CLARIFICATION, missingPerson.status());
@@ -403,7 +481,7 @@ class AssistantToolsIntegrationTests {
 			Integer installments,
 			ToolContext context) {
 		return transactionTools.recordTransaction(
-				"EXPENSE", description, new BigDecimal(amount), category, DATE, installments, context);
+				"EXPENSE", description, new BigDecimal(amount), category, DATE, null, installments, context);
 	}
 
 	private ToolResult recordReimbursable(
@@ -419,6 +497,7 @@ class AssistantToolsIntegrationTests {
 				new BigDecimal(amount),
 				category,
 				DATE,
+				null,
 				installments,
 				person,
 				amountOwed,
@@ -438,6 +517,17 @@ class AssistantToolsIntegrationTests {
 				JOIN category ON category.id = transaction.category_id
 				WHERE transaction.description = ?
 				""", String.class, description);
+	}
+
+	private List<LocalDate> occurrenceDatesFor(String description) {
+		return jdbcTemplate.queryForList("""
+				SELECT occurrence.effective_date
+				FROM transaction_occurrence occurrence
+				JOIN financial_transaction transaction
+				  ON transaction.id = occurrence.transaction_id
+				WHERE transaction.description = ?
+				ORDER BY occurrence.sequence_number
+				""", LocalDate.class, description);
 	}
 
 	private int transactionCount() {

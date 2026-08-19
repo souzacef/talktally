@@ -61,8 +61,27 @@ class FinancialTransactionTests {
 				LocalDate.of(2026, 9, 10));
 
 		assertEquals(3, transaction.occurrences().size());
+		assertEquals(LocalDate.of(2026, 9, 10), transaction.firstOccurrenceDate());
 		assertEquals(Money.brl(new BigDecimal("33.34")), transaction.occurrences().getLast().amount());
 		assertEquals(LocalDate.of(2026, 11, 10), transaction.occurrences().getLast().effectiveDate());
+	}
+
+	@Test
+	void supportsADelayedFirstOccurrenceForASingleInstallment() {
+		LocalDate firstOccurrenceDate = LocalDate.of(2026, 9, 10);
+		FinancialTransaction transaction = FinancialTransaction.createInstallment(
+				UserId.generate(),
+				TransactionKind.EXPENSE,
+				"Delayed single payment",
+				Money.brl(new BigDecimal("10.00")),
+				CategoryId.generate(),
+				EVENT_DATE,
+				TransactionSource.MANUAL,
+				1,
+				firstOccurrenceDate);
+
+		assertEquals(firstOccurrenceDate, transaction.firstOccurrenceDate());
+		assertEquals(firstOccurrenceDate, transaction.occurrences().getFirst().effectiveDate());
 	}
 
 	@Test
@@ -84,6 +103,7 @@ class FinancialTransactionTests {
 				occurrences);
 
 		assertEquals(id, transaction.id());
+		assertEquals(EVENT_DATE, transaction.firstOccurrenceDate());
 		assertEquals(List.of(1, 2), transaction.occurrences().stream()
 				.map(TransactionOccurrence::sequenceNumber)
 				.toList());

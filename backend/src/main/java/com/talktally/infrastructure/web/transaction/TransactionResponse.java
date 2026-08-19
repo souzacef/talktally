@@ -17,6 +17,7 @@ public record TransactionResponse(
 		String currency,
 		UUID categoryId,
 		LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		TransactionSource source,
 		int installmentCount,
 		List<TransactionOccurrenceResponse> occurrences) {
@@ -34,6 +35,7 @@ public record TransactionResponse(
 				output.currency(),
 				output.categoryId().value(),
 				output.eventDate(),
+				output.firstOccurrenceDate(),
 				output.source(),
 				output.installmentCount(),
 				output.occurrences().stream()

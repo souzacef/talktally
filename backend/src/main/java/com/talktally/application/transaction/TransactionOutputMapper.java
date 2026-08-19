@@ -18,6 +18,7 @@ final class TransactionOutputMapper {
 				transaction.totalAmount().currency().getCurrencyCode(),
 				transaction.categoryId(),
 				transaction.eventDate(),
+				transaction.firstOccurrenceDate(),
 				transaction.source(),
 				transaction.occurrences().size(),
 				transaction.occurrences().stream()

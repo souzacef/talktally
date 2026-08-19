@@ -89,12 +89,50 @@ class TransactionUseCasesTests {
 				() -> assertEquals("Groceries", output.description()),
 				() -> assertEquals(new BigDecimal("87.45"), output.amount()),
 				() -> assertEquals("BRL", output.currency()),
+				() -> assertEquals(EVENT_DATE, output.firstOccurrenceDate()),
 				() -> assertEquals(1, output.installmentCount()),
 				() -> assertEquals(EVENT_DATE, output.occurrences().getFirst().effectiveDate()),
 				() -> assertEquals(new BigDecimal("87.45"), output.occurrences().getFirst().amount()),
 				() -> assertThrows(
 						UnsupportedOperationException.class,
 						() -> output.occurrences().clear()));
+	}
+
+	@Test
+	void createsDelayedOccurrencesForMultiAndSingleInstallmentTransactions() {
+		LocalDate firstOccurrenceDate = LocalDate.of(2026, 9, 10);
+
+		TransactionOutput multi = create(
+				USER_A, TransactionKind.EXPENSE, "Delayed purchase", "100.00",
+				EXPENSE_CATEGORY, EVENT_DATE, firstOccurrenceDate, 3, TransactionSource.MANUAL);
+		TransactionOutput single = create(
+				USER_A, TransactionKind.EXPENSE, "Delayed single", "10.00",
+				EXPENSE_CATEGORY, EVENT_DATE, firstOccurrenceDate, 1, TransactionSource.MANUAL);
+
+		assertAll(
+				() -> assertEquals(EVENT_DATE, multi.eventDate()),
+				() -> assertEquals(firstOccurrenceDate, multi.firstOccurrenceDate()),
+				() -> assertEquals(
+						List.of(
+								firstOccurrenceDate,
+								firstOccurrenceDate.plusMonths(1),
+								firstOccurrenceDate.plusMonths(2)),
+						multi.occurrences().stream()
+								.map(occurrence -> occurrence.effectiveDate())
+								.toList()),
+				() -> assertEquals(firstOccurrenceDate, single.firstOccurrenceDate()),
+				() -> assertEquals(firstOccurrenceDate, single.occurrences().getFirst().effectiveDate()));
+	}
+
+	@Test
+	void acceptsFirstOccurrenceBeforeEventDate() {
+		LocalDate firstOccurrenceDate = EVENT_DATE.minusDays(5);
+
+		TransactionOutput output = create(
+				USER_A, TransactionKind.EXPENSE, "Earlier cash flow", "10.00",
+				EXPENSE_CATEGORY, EVENT_DATE, firstOccurrenceDate, 1, TransactionSource.MANUAL);
+
+		assertEquals(firstOccurrenceDate, output.firstOccurrenceDate());
 	}
 
 	@Test
@@ -187,6 +225,16 @@ class TransactionUseCasesTests {
 				InvalidTransactionInputException.class,
 				() -> create(USER_A, TransactionKind.EXPENSE, "Purchase", "200.00",
 						EXPENSE_CATEGORY, EVENT_DATE, 121, TransactionSource.MANUAL));
+	}
+
+	@Test
+	void acceptsOneHundredTwentyInstallments() {
+		TransactionOutput output = create(
+				USER_A, TransactionKind.EXPENSE, "Long schedule", "120.00",
+				EXPENSE_CATEGORY, EVENT_DATE, 120, TransactionSource.MANUAL);
+
+		assertEquals(120, output.occurrences().size());
+		assertEquals(EVENT_DATE.plusMonths(119), output.occurrences().getLast().effectiveDate());
 	}
 
 	@Test
@@ -380,6 +428,7 @@ class TransactionUseCasesTests {
 						new BigDecimal("100.00"),
 						SECOND_EXPENSE_CATEGORY,
 						newDate,
+						null,
 						3));
 
 		assertAll(
@@ -398,6 +447,42 @@ class TransactionUseCasesTests {
 	}
 
 	@Test
+	void updateUsesAnExplicitFirstOccurrenceDateAndOmissionResetsItToEventDate() {
+		LocalDate delayedDate = LocalDate.of(2026, 9, 10);
+		TransactionOutput created = create(
+				USER_A, TransactionKind.EXPENSE, "Delayed", "30.00",
+				EXPENSE_CATEGORY, EVENT_DATE, delayedDate, 3, TransactionSource.MANUAL);
+		LocalDate updatedEventDate = EVENT_DATE.plusDays(5);
+
+		TransactionOutput explicitlyUpdated = updateUseCase.execute(
+				USER_A,
+				created.transactionId(),
+				new UpdateTransactionInput(
+						TransactionKind.EXPENSE,
+						"Still delayed",
+						new BigDecimal("30.00"),
+						EXPENSE_CATEGORY,
+						updatedEventDate,
+						delayedDate.plusDays(2),
+						3));
+		TransactionOutput reset = updateUseCase.execute(
+				USER_A,
+				explicitlyUpdated.transactionId(),
+				new UpdateTransactionInput(
+						TransactionKind.EXPENSE,
+						"Reset schedule",
+						new BigDecimal("30.00"),
+						EXPENSE_CATEGORY,
+						updatedEventDate,
+						null,
+						3));
+
+		assertEquals(delayedDate.plusDays(2), explicitlyUpdated.firstOccurrenceDate());
+		assertEquals(updatedEventDate, reset.firstOccurrenceDate());
+		assertEquals(updatedEventDate, reset.occurrences().getFirst().effectiveDate());
+	}
+
+	@Test
 	void updatePreservesIdOwnerAndOriginalSource() {
 		TransactionOutput created = create(
 				USER_A, TransactionKind.EXPENSE, "Assistant-created", "10.00",
@@ -412,6 +497,7 @@ class TransactionUseCasesTests {
 						new BigDecimal("20.00"),
 						EXPENSE_CATEGORY,
 						EVENT_DATE,
+						null,
 						1));
 
 		FinancialTransaction persisted = repository
@@ -437,6 +523,7 @@ class TransactionUseCasesTests {
 								new BigDecimal("10.00"),
 								INCOME_CATEGORY,
 								EVENT_DATE,
+								null,
 								1)));
 	}
 
@@ -455,6 +542,7 @@ class TransactionUseCasesTests {
 								new BigDecimal("10.00"),
 								ANY_CATEGORY,
 								EVENT_DATE,
+								null,
 								1)));
 	}
 
@@ -473,6 +561,7 @@ class TransactionUseCasesTests {
 								new BigDecimal("10.00"),
 								EXPENSE_CATEGORY,
 								EVENT_DATE,
+								null,
 								1)));
 	}
 
@@ -523,6 +612,28 @@ class TransactionUseCasesTests {
 			LocalDate eventDate,
 			int installmentCount,
 			TransactionSource source) {
+		return create(
+				ownerId,
+				kind,
+				description,
+				amount,
+				categoryId,
+				eventDate,
+				null,
+				installmentCount,
+				source);
+	}
+
+	private TransactionOutput create(
+			UserId ownerId,
+			TransactionKind kind,
+			String description,
+			String amount,
+			CategoryId categoryId,
+			LocalDate eventDate,
+			LocalDate firstOccurrenceDate,
+			int installmentCount,
+			TransactionSource source) {
 		return createUseCase.execute(
 				ownerId,
 				source,
@@ -532,6 +643,7 @@ class TransactionUseCasesTests {
 						new BigDecimal(amount),
 						categoryId,
 						eventDate,
+						firstOccurrenceDate,
 						installmentCount));
 	}
 

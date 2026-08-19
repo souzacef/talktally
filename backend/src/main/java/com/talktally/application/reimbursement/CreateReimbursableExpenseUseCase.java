@@ -70,6 +70,7 @@ public class CreateReimbursableExpenseUseCase {
 						input.amount(),
 						input.categoryId(),
 						input.eventDate(),
+						input.firstOccurrenceDate(),
 						input.installmentCount()));
 		ReimbursementClaim claim;
 		try {

@@ -54,6 +54,7 @@ public class UpdateTransactionUseCase {
 				input.amount(),
 				input.categoryId(),
 				input.eventDate(),
+				input.firstOccurrenceDate(),
 				input.installmentCount());
 		FinancialTransaction replacement = TransactionAggregateFactory.replace(existing, validated);
 

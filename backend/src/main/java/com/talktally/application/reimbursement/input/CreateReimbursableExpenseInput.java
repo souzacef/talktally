@@ -11,6 +11,7 @@ public record CreateReimbursableExpenseInput(
 		BigDecimal amount,
 		CategoryId categoryId,
 		LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		int installmentCount,
 		PersonId personId,
 		BigDecimal amountOwed,

@@ -18,6 +18,7 @@ public record TransactionOutput(
 		String currency,
 		CategoryId categoryId,
 		LocalDate eventDate,
+		LocalDate firstOccurrenceDate,
 		TransactionSource source,
 		int installmentCount,
 		List<TransactionOccurrenceOutput> occurrences) {
@@ -30,6 +31,7 @@ public record TransactionOutput(
 		Objects.requireNonNull(currency, "currency must not be null");
 		Objects.requireNonNull(categoryId, "category id must not be null");
 		Objects.requireNonNull(eventDate, "event date must not be null");
+		Objects.requireNonNull(firstOccurrenceDate, "first occurrence date must not be null");
 		Objects.requireNonNull(source, "source must not be null");
 		Objects.requireNonNull(occurrences, "occurrences must not be null");
 		occurrences = List.copyOf(occurrences);

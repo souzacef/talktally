@@ -29,6 +29,7 @@ final class TransactionInputValidator {
 			BigDecimal amount,
 			CategoryId categoryId,
 			LocalDate eventDate,
+			LocalDate firstOccurrenceDate,
 			int installmentCount) {
 		Objects.requireNonNull(actorId, "actor id must not be null");
 		if (kind == null) {
@@ -72,8 +73,17 @@ final class TransactionInputValidator {
 			throw new CategoryIncompatibleException(categoryId, kind);
 		}
 
+		LocalDate resolvedFirstOccurrenceDate = firstOccurrenceDate == null
+				? eventDate
+				: firstOccurrenceDate;
 		return new ValidatedTransactionInput(
-				kind, description.strip(), money, categoryId, eventDate, installmentCount);
+				kind,
+				description.strip(),
+				money,
+				categoryId,
+				eventDate,
+				resolvedFirstOccurrenceDate,
+				installmentCount);
 	}
 
 	CategoryMetadata requireVisibleCategory(UserId actorId, CategoryId categoryId) {

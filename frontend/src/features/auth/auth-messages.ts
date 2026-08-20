@@ -1,8 +1,8 @@
 import type { AppLocale } from '@/app/providers/locale-provider'
 
 const enUS = {
-  welcomeBack: 'Welcome back',
-  loginSubtitle: 'Pick up where your money left off.',
+  welcomeBack: 'Welcome to TalkTally!',
+  loginSubtitle: 'Sign in to understand your money.',
   registrationComplete: 'Registration complete. You can sign in now.',
   email: 'Email',
   password: 'Password',
@@ -24,8 +24,8 @@ const enUS = {
 type AuthMessageKey = keyof typeof enUS
 
 const ptBR: Record<AuthMessageKey, string> = {
-  welcomeBack: 'Bem-vindo de volta',
-  loginSubtitle: 'Continue de onde suas finanças pararam.',
+  welcomeBack: 'Boas-vindas ao TalkTally!',
+  loginSubtitle: 'Entre para entender melhor suas finanças.',
   registrationComplete: 'Cadastro concluído. Você já pode entrar.',
   email: 'E-mail',
   password: 'Senha',

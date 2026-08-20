@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { LocaleProvider } from '@/app/providers/locale-provider'
 import { ThemeControl } from '@/components/layout/theme-control'
 import { THEME_KEY, ThemeProvider, useTheme } from '@/app/providers/theme-provider'
 
@@ -24,10 +25,18 @@ function ResolvedTheme() {
   return <span>{useTheme().resolvedTheme}</span>
 }
 
+function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <LocaleProvider>
+      <ThemeProvider>{children}</ThemeProvider>
+    </LocaleProvider>
+  )
+}
+
 describe('ThemeProvider', () => {
   it('follows system dark and persists an explicit light override', async () => {
     mockSystemDark(true)
-    render(<ThemeProvider><ThemeControl /><ResolvedTheme /></ThemeProvider>)
+    render(<Providers><ThemeControl /><ResolvedTheme /></Providers>)
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'))
     expect(screen.getByText('dark')).toBeInTheDocument()
 
@@ -40,7 +49,7 @@ describe('ThemeProvider', () => {
   it('restores a stored dark preference independently of a light system', async () => {
     mockSystemDark(false)
     window.localStorage.setItem(THEME_KEY, 'dark')
-    render(<ThemeProvider><ResolvedTheme /></ThemeProvider>)
+    render(<Providers><ResolvedTheme /></Providers>)
     await waitFor(() => expect(document.documentElement).toHaveClass('dark'))
     expect(screen.getByText('dark')).toBeInTheDocument()
   })

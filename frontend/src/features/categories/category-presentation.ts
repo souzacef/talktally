@@ -3,6 +3,11 @@ import type { Category, UserManagedTransactionKind } from '@/types/api'
 
 export const UNKNOWN_CATEGORY_LABEL = 'Unknown category'
 
+const UNKNOWN_CATEGORY_LABELS: Record<AppLocale, string> = {
+  'en-US': UNKNOWN_CATEGORY_LABEL,
+  'pt-BR': 'Categoria desconhecida',
+}
+
 const BUILT_IN_LABELS: Record<string, Record<AppLocale, string>> = {
   SALARY: { 'en-US': 'Salary', 'pt-BR': 'Salário' },
   FREELANCE: { 'en-US': 'Freelance', 'pt-BR': 'Freelance' },
@@ -39,7 +44,7 @@ export function categoryLabelForId(
   locale: AppLocale = 'en-US',
 ): string {
   const category = categories?.find((candidate) => candidate.id === categoryId)
-  return category ? categoryLabel(category, locale) : UNKNOWN_CATEGORY_LABEL
+  return category ? categoryLabel(category, locale) : UNKNOWN_CATEGORY_LABELS[locale]
 }
 
 export function categorySupportsKind(

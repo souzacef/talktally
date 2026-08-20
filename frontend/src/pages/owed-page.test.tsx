@@ -100,7 +100,7 @@ describe('OwedPage localization', () => {
     expect((await screen.findAllByText(/R\$\s*80,50/)).length).toBeGreaterThan(0)
     const claim = (await screen.findByText('Cobrança de reembolso')).closest('article')
     expect(claim).not.toBeNull()
-    expect(within(claim!).getByText('PARCIALMENTE PAGO')).toBeInTheDocument()
+    expect(within(claim!).getByText('Parcialmente pago')).toBeInTheDocument()
     expect(within(claim!).getByText(/19\/08\/2026 · Pix/)).toBeInTheDocument()
   })
 

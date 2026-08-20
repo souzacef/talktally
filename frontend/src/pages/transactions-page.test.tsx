@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LocaleProvider } from '@/app/providers/locale-provider'
 import { ApiError } from '@/lib/api/api-client'
 import { queryKeys } from '@/lib/query/query-client'
 import { TransactionsPage } from '@/pages/transactions-page'
@@ -92,9 +93,11 @@ function renderPage() {
   })
   const invalidate = vi.spyOn(client, 'invalidateQueries')
   render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter><TransactionsPage /><LocationProbe /></MemoryRouter>
-    </QueryClientProvider>,
+    <LocaleProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter><TransactionsPage /><LocationProbe /></MemoryRouter>
+      </QueryClientProvider>
+    </LocaleProvider>,
   )
   return { invalidate, user: userEvent.setup() }
 }

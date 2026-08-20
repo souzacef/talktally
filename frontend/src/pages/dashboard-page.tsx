@@ -62,7 +62,6 @@ export function DashboardPage() {
     <section className="space-y-7">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="mb-1 text-xs font-bold tracking-[0.14em] text-primary uppercase">{t('dashboard.thisMonth')}</p>
           <h1 className="font-heading text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
             {userFirstName ? t('dashboard.greetingNamed', { name: userFirstName }) : t('dashboard.greetingGeneric')}
           </h1>

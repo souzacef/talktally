@@ -1,6 +1,7 @@
 package com.talktally.infrastructure.web.assistant;
 
 import com.jayway.jsonpath.JsonPath;
+import com.talktally.application.assistant.AssistantConversationMessage;
 import com.talktally.application.assistant.AssistantInput;
 import com.talktally.application.assistant.AssistantOutput;
 import com.talktally.application.assistant.AssistantStatus;
@@ -34,6 +35,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -98,7 +100,7 @@ class VoiceAssistantApiIntegrationTests {
 	}
 
 	@Test
-	void validWavReturnsCompleteJsonContractAndUsesJwtActorWithVoiceSource() throws Exception {
+	void validWavReturnsCompleteJsonContractAndPersistsVoiceTurn() throws Exception {
 		MvcResult result = mockMvc.perform(multipart("/api/v1/assistant/voice")
 						.file(validFile())
 						.header("Authorization", bearer()))
@@ -119,8 +121,17 @@ class VoiceAssistantApiIntegrationTests {
 		assertEquals("audio/wav", speechToText.input.mediaType());
 		assertEquals(USER, assistant.actorId);
 		assertEquals(TransactionSource.VOICE, assistant.source);
+		assertEquals(List.of(), assistant.history);
 		assertEquals("I spent 42 reais on groceries", assistant.input.message());
 		assertEquals("Recorded safely.", textToSpeech.text);
+		assertEquals(2, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM assistant_message WHERE user_id = ?",
+				Integer.class,
+				USER_VALUE));
+		assertEquals("VOICE", jdbcTemplate.queryForObject(
+				"SELECT source FROM assistant_message WHERE user_id = ? AND role = 'USER'",
+				String.class,
+				USER_VALUE));
 	}
 
 	@Test
@@ -281,6 +292,7 @@ class VoiceAssistantApiIntegrationTests {
 		private int calls;
 		private UserId actorId;
 		private TransactionSource source;
+		private List<AssistantConversationMessage> history = List.of();
 		private AssistantInput input;
 		private RuntimeException failure;
 
@@ -288,10 +300,12 @@ class VoiceAssistantApiIntegrationTests {
 		public AssistantOutput respond(
 				UserId actorId,
 				TransactionSource source,
+				List<AssistantConversationMessage> history,
 				AssistantInput input) {
 			calls++;
 			this.actorId = actorId;
 			this.source = source;
+			this.history = history;
 			this.input = input;
 			if (failure != null) {
 				throw failure;
@@ -303,6 +317,7 @@ class VoiceAssistantApiIntegrationTests {
 			calls = 0;
 			actorId = null;
 			source = null;
+			history = List.of();
 			input = null;
 			failure = null;
 		}

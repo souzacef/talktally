@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { LocaleProvider } from '@/app/providers/locale-provider'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import type { AuthService } from '@/features/auth/api/auth-api'
@@ -12,20 +13,22 @@ import { RegisterPage } from '@/pages/register-page'
 
 function renderRegistration(service: AuthService) {
   render(
-    <ThemeProvider>
-      <AuthProvider
-        session={new AuthSession(window.sessionStorage)}
-        service={service}
-        privateQueryClient={new QueryClient()}
-      >
-        <MemoryRouter initialEntries={['/register']}>
-          <Routes>
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/login" element={<p>Login destination</p>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>
-    </ThemeProvider>,
+    <LocaleProvider>
+      <ThemeProvider>
+        <AuthProvider
+          session={new AuthSession(window.sessionStorage)}
+          service={service}
+          privateQueryClient={new QueryClient()}
+        >
+          <MemoryRouter initialEntries={['/register']}>
+            <Routes>
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/login" element={<p>Login destination</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>
+    </LocaleProvider>,
   )
 }
 

@@ -20,6 +20,9 @@ export const queryClient = new QueryClient({
 })
 
 export const queryKeys = {
+  assistant: {
+    conversation: ['assistant', 'conversation'] as const,
+  },
   categories: {
     all: ['categories'] as const,
   },

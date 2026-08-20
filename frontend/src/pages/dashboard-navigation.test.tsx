@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from '@/pages/dashboard-page'
+import { LOCALE_KEY, LocaleProvider } from '@/app/providers/locale-provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import { AuthSession } from '@/lib/auth/auth-session'
 import type { TransactionResponse } from '@/types/api'
@@ -59,15 +60,17 @@ function renderDashboard(displayName = 'Carlos Eduardo Freire de Souza') {
   })
   render(
     <QueryClientProvider client={client}>
-      <AuthProvider session={session} privateQueryClient={client}>
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <Routes>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/transactions" element={<p>All transactions destination</p>} />
-            <Route path="/transactions/:transactionId" element={<p>Transaction detail destination</p>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider session={session} privateQueryClient={client}>
+          <MemoryRouter initialEntries={['/dashboard']}>
+            <Routes>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/transactions" element={<p>All transactions destination</p>} />
+              <Route path="/transactions/:transactionId" element={<p>Transaction detail destination</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </LocaleProvider>
     </QueryClientProvider>,
   )
   return userEvent.setup()
@@ -131,5 +134,16 @@ describe('Dashboard Recent Activity navigation', () => {
     expect(document.body.textContent).not.toContain('food-category-id')
     await user.click(screen.getByRole('link', { name: 'View transaction Recent coffee' }))
     expect(screen.getByText('Transaction detail destination')).toBeInTheDocument()
+  })
+
+  it('renders dashboard copy, category labels, dates, and BRL amounts in pt-BR', async () => {
+    window.localStorage.setItem(LOCALE_KEY, 'pt-BR')
+    renderDashboard()
+
+    expect(screen.getByRole('heading', { name: 'Olá, Carlos!' })).toBeInTheDocument()
+    expect(screen.getByText('Atividade recente')).toBeInTheDocument()
+    expect(await screen.findByText(/Alimentação · 19\/08\/2026/)).toBeInTheDocument()
+    expect(screen.getByText(/R\$\s*7,89/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver transação Recent coffee' })).toBeInTheDocument()
   })
 })

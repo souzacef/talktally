@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { LocaleProvider } from '@/app/providers/locale-provider'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { ProtectedRoute } from '@/app/router/protected-route'
 import { AppShell } from '@/components/layout/app-shell'
@@ -47,25 +48,27 @@ function renderAuthFlow(
   initialPath: string,
 ) {
   return render(
-    <ThemeProvider>
-      <AuthProvider
-        session={session}
-        service={service}
-        privateQueryClient={new QueryClient()}
-      >
-        <MemoryRouter initialEntries={[initialPath]}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppShell />}>
-                <Route path="/dashboard" element={<h1>Dashboard destination</h1>} />
-                <Route path="/transactions" element={<h1>Transactions destination</h1>} />
+    <LocaleProvider>
+      <ThemeProvider>
+        <AuthProvider
+          session={session}
+          service={service}
+          privateQueryClient={new QueryClient()}
+        >
+          <MemoryRouter initialEntries={[initialPath]}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppShell />}>
+                  <Route path="/dashboard" element={<h1>Dashboard destination</h1>} />
+                  <Route path="/transactions" element={<h1>Transactions destination</h1>} />
+                </Route>
               </Route>
-            </Route>
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>
-    </ThemeProvider>,
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>
+    </LocaleProvider>,
   )
 }
 

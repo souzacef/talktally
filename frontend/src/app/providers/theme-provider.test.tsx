@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -25,7 +26,7 @@ function ResolvedTheme() {
   return <span>{useTheme().resolvedTheme}</span>
 }
 
-function Providers({ children }: { children: React.ReactNode }) {
+function Providers({ children }: { children: ReactNode }) {
   return (
     <LocaleProvider>
       <ThemeProvider>{children}</ThemeProvider>

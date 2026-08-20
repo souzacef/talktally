@@ -54,19 +54,19 @@ export function KindIcon({ kind, className }: { kind: TransactionKind; className
   )
 }
 
-export function KindBadge({ kind }: { kind: TransactionKind }) {
+export function KindBadge({ kind, label }: { kind: TransactionKind; label?: string }) {
   const style = kindStyles[kind]
   return (
     <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[0.68rem] font-semibold tracking-wide uppercase', style.background, style.foreground)}>
-      {style.label}
+      {label ?? style.label}
     </span>
   )
 }
 
-export function ProtectedBadge() {
+export function ProtectedBadge({ label = 'Protected' }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-protected-soft px-2.5 py-1 text-[0.68rem] font-semibold text-protected">
-      <LockKeyhole className="size-3" aria-hidden="true" /> Protected
+      <LockKeyhole className="size-3" aria-hidden="true" /> {label}
     </span>
   )
 }

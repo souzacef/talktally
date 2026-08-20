@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { LocaleProvider } from '@/app/providers/locale-provider'
+import { LOCALE_KEY, LocaleProvider } from '@/app/providers/locale-provider'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import type { AuthService } from '@/features/auth/api/auth-api'
@@ -63,5 +63,15 @@ describe('RegisterPage', () => {
     })
     await fillRegistration()
     expect(await screen.findByText('email is already registered')).toBeInTheDocument()
+  })
+
+  it('renders registration guidance in pt-BR without changing password rules', () => {
+    window.localStorage.setItem(LOCALE_KEY, 'pt-BR')
+    renderRegistration({ signIn: vi.fn(), register: vi.fn() })
+
+    expect(screen.getByRole('heading', { name: 'Crie sua conta' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nome de exibição')).toBeInTheDocument()
+    expect(screen.getByLabelText('Senha')).toHaveAttribute('minlength', '10')
+    expect(screen.getByText('10–128 caracteres, com pelo menos uma letra e um número.')).toBeInTheDocument()
   })
 })

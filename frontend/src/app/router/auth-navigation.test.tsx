@@ -89,7 +89,7 @@ describe('authentication navigation', () => {
     expect(screen.getByText(userA.email)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    expect(await screen.findByText('Welcome back')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome to TalkTally!' })).toBeInTheDocument()
 
     await signInAsUserB()
 
@@ -102,7 +102,7 @@ describe('authentication navigation', () => {
     const session = new AuthSession(window.sessionStorage)
     renderAuthFlow(session, authServiceFor(userB), '/transactions?kind=EXPENSE')
 
-    expect(await screen.findByText('Welcome back')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome to TalkTally!' })).toBeInTheDocument()
     await signInAsUserB()
 
     expect(await screen.findByRole('heading', { name: 'Transactions destination' })).toBeInTheDocument()

@@ -132,7 +132,7 @@ describe('TransactionDetailPage', () => {
       ],
     })
     renderDetail()
-    const installments = await screen.findByText('Authoritative schedule reported by TalkTally.')
+    const installments = await screen.findByText('Schedule based on the transaction cash-flow dates.')
     const card = installments.closest<HTMLElement>('[data-slot="card"]')
     expect(card).not.toBeNull()
     expect(screen.getByText('08/31/2026')).toBeInTheDocument()
@@ -145,11 +145,12 @@ describe('TransactionDetailPage', () => {
     expect(within(card!).getByText(/R\$\s*10\.03/)).toBeInTheDocument()
   })
 
-  it('keeps reimbursement receipts read-only and explains their meaning', async () => {
+  it('keeps reimbursement receipts read-only and links to the reimbursement workspace', async () => {
     mocks.get.mockResolvedValue(reimbursement)
     renderDetail('/transactions/receipt-42')
     expect(await screen.findByText(/managed through/i)).toBeInTheDocument()
     expect(screen.getByText(/not earned income/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Owed to Me' })).toHaveAttribute('href', '/owed')
     expect(screen.queryByRole('button', { name: /edit transaction/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delete transaction/i })).not.toBeInTheDocument()
   })

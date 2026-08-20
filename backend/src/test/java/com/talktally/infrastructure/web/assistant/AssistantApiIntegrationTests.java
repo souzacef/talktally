@@ -1,5 +1,6 @@
 package com.talktally.infrastructure.web.assistant;
 
+import com.talktally.application.assistant.AssistantConversationMessage;
 import com.talktally.application.assistant.AssistantInput;
 import com.talktally.application.assistant.AssistantOutput;
 import com.talktally.application.assistant.AssistantStatus;
@@ -23,8 +24,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -65,15 +70,19 @@ class AssistantApiIntegrationTests {
 	}
 
 	@Test
-	void endpointRequiresJwt() throws Exception {
+	void endpointsRequireJwt() throws Exception {
+		mockMvc.perform(get("/api/v1/assistant/messages"))
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(post("/api/v1/assistant/messages")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"message\":\"hello\"}"))
 				.andExpect(status().isUnauthorized());
+		mockMvc.perform(delete("/api/v1/assistant/messages"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	void validJwtUsesAuthenticatedActorAndAssistantTextSource() throws Exception {
+	void successfulTurnIsPersistedAndReturnedAsUserOwnedHistory() throws Exception {
 		mockMvc.perform(post("/api/v1/assistant/messages")
 						.header("Authorization", bearer())
 						.contentType(MediaType.APPLICATION_JSON)
@@ -82,9 +91,48 @@ class AssistantApiIntegrationTests {
 				.andExpect(jsonPath("$.message").value("Safe fake response"))
 				.andExpect(jsonPath("$.status").value("COMPLETED"));
 
-		org.junit.jupiter.api.Assertions.assertEquals(USER, fakePort.actorId);
-		org.junit.jupiter.api.Assertions.assertEquals(
-				TransactionSource.ASSISTANT_TEXT, fakePort.source);
+		assertEquals(USER, fakePort.actorId);
+		assertEquals(TransactionSource.ASSISTANT_TEXT, fakePort.source);
+
+		mockMvc.perform(get("/api/v1/assistant/messages")
+						.header("Authorization", bearer()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].role").value("USER"))
+				.andExpect(jsonPath("$[0].content").value("Record lunch"))
+				.andExpect(jsonPath("$[0].source").value("ASSISTANT_TEXT"))
+				.andExpect(jsonPath("$[0].status").doesNotExist())
+				.andExpect(jsonPath("$[1].role").value("ASSISTANT"))
+				.andExpect(jsonPath("$[1].content").value("Safe fake response"))
+				.andExpect(jsonPath("$[1].source").doesNotExist())
+				.andExpect(jsonPath("$[1].status").value("COMPLETED"));
+	}
+
+	@Test
+	void nextTurnReceivesPreviousExchangeAsConversationContext() throws Exception {
+		send("I paid for dinner");
+		assertEquals(List.of(), fakePort.history);
+
+		send("Rose owes me");
+
+		assertEquals(2, fakePort.history.size());
+		assertEquals("I paid for dinner", fakePort.history.get(0).content());
+		assertEquals("Safe fake response", fakePort.history.get(1).content());
+	}
+
+	@Test
+	void clearRemovesConversationAndResetsModelContext() throws Exception {
+		send("hello");
+
+		mockMvc.perform(delete("/api/v1/assistant/messages")
+						.header("Authorization", bearer()))
+				.andExpect(status().isNoContent());
+		mockMvc.perform(get("/api/v1/assistant/messages")
+						.header("Authorization", bearer()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isEmpty());
+
+		send("fresh start");
+		assertEquals(List.of(), fakePort.history);
 	}
 
 	@Test
@@ -100,7 +148,7 @@ class AssistantApiIntegrationTests {
 						.content("{\"message\":\"" + "x".repeat(4_001) + "\"}"))
 				.andExpect(status().isBadRequest());
 
-		org.junit.jupiter.api.Assertions.assertEquals(0, fakePort.calls);
+		assertEquals(0, fakePort.calls);
 	}
 
 	@Test
@@ -113,11 +161,11 @@ class AssistantApiIntegrationTests {
 								"""))
 				.andExpect(status().isBadRequest());
 
-		org.junit.jupiter.api.Assertions.assertEquals(0, fakePort.calls);
+		assertEquals(0, fakePort.calls);
 	}
 
 	@Test
-	void providerFailureReturnsSafeServiceUnavailablePayload() throws Exception {
+	void providerFailureReturnsSafeServiceUnavailablePayloadWithoutPersistingTurn() throws Exception {
 		fakePort.unavailable = true;
 
 		mockMvc.perform(post("/api/v1/assistant/messages")
@@ -127,6 +175,19 @@ class AssistantApiIntegrationTests {
 				.andExpect(status().isServiceUnavailable())
 				.andExpect(jsonPath("$.code").value("ASSISTANT_UNAVAILABLE"))
 				.andExpect(jsonPath("$.message").value("assistant is temporarily unavailable"));
+
+		mockMvc.perform(get("/api/v1/assistant/messages")
+						.header("Authorization", bearer()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isEmpty());
+	}
+
+	private void send(String message) throws Exception {
+		mockMvc.perform(post("/api/v1/assistant/messages")
+						.header("Authorization", bearer())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"message\":\"" + message + "\"}"))
+				.andExpect(status().isOk());
 	}
 
 	private String bearer() {
@@ -148,16 +209,19 @@ class AssistantApiIntegrationTests {
 		private int calls;
 		private UserId actorId;
 		private TransactionSource source;
+		private List<AssistantConversationMessage> history = List.of();
 		private boolean unavailable;
 
 		@Override
 		public AssistantOutput respond(
 				UserId actorId,
 				TransactionSource source,
+				List<AssistantConversationMessage> history,
 				AssistantInput input) {
 			calls++;
 			this.actorId = actorId;
 			this.source = source;
+			this.history = history;
 			if (unavailable) {
 				throw new AssistantUnavailableException(new RuntimeException("provider detail"));
 			}
@@ -168,6 +232,7 @@ class AssistantApiIntegrationTests {
 			calls = 0;
 			actorId = null;
 			source = null;
+			history = List.of();
 			unavailable = false;
 		}
 	}

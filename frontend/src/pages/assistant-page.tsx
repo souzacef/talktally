@@ -140,7 +140,7 @@ export function AssistantPage() {
             )}
             {clearError && <Alert variant="destructive"><AlertDescription>{clearError}</AlertDescription></Alert>}
             <div className="flex-1 space-y-4" aria-live="polite">
-              {historyQuery.isPending && <StatePanel title={text('loadingHistory')} />}
+              {historyQuery.isPending && <StatePanel title={text('loadingHistory')} description={text('loadingHistoryDescription')} />}
               {historyQuery.error && <StatePanel tone="error" title={text('historyUnavailable')} description={text('historyUnavailableDescription')} />}
               {!historyQuery.isPending && !historyQuery.error && !hasConversation && !pendingUserMessage && (
                 <StatePanel title={text('ready')} description={text('readyDescription')} />

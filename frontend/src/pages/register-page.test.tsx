@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { LOCALE_KEY, LocaleProvider } from '@/app/providers/locale-provider'
+import { LOCALE_KEY, LocaleProvider, type AppLocale } from '@/app/providers/locale-provider'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import type { AuthService } from '@/features/auth/api/auth-api'
@@ -11,7 +11,8 @@ import { ApiError } from '@/lib/api/api-client'
 import { AuthSession } from '@/lib/auth/auth-session'
 import { RegisterPage } from '@/pages/register-page'
 
-function renderRegistration(service: AuthService) {
+function renderRegistration(service: AuthService, locale: AppLocale = 'en-US') {
+  window.localStorage.setItem(LOCALE_KEY, locale)
   render(
     <LocaleProvider>
       <ThemeProvider>
@@ -36,7 +37,7 @@ async function fillRegistration() {
   await userEvent.type(screen.getByLabelText('Display name'), 'Carlos')
   await userEvent.type(screen.getByLabelText('Email'), 'carlos@example.com')
   await userEvent.type(screen.getByLabelText('Password'), 'securepass123')
-  await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Create an account' }))
 }
 
 describe('RegisterPage', () => {
@@ -66,10 +67,9 @@ describe('RegisterPage', () => {
   })
 
   it('renders registration guidance in pt-BR without changing password rules', () => {
-    window.localStorage.setItem(LOCALE_KEY, 'pt-BR')
-    renderRegistration({ signIn: vi.fn(), register: vi.fn() })
+    renderRegistration({ signIn: vi.fn(), register: vi.fn() }, 'pt-BR')
 
-    expect(screen.getByRole('heading', { name: 'Crie sua conta' })).toBeInTheDocument()
+    expect(screen.getByText('Crie sua conta')).toBeInTheDocument()
     expect(screen.getByLabelText('Nome de exibição')).toBeInTheDocument()
     expect(screen.getByLabelText('Senha')).toHaveAttribute('minlength', '10')
     expect(screen.getByText('10–128 caracteres, com pelo menos uma letra e um número.')).toBeInTheDocument()

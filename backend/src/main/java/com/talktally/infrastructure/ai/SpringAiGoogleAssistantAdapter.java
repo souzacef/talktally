@@ -42,6 +42,13 @@ public class SpringAiGoogleAssistantAdapter implements ChatAssistantPort {
 		};
 	}
 
+	public AssistantOutput respond(
+			UserId actorId,
+			TransactionSource source,
+			AssistantInput input) {
+		return respond(actorId, source, List.of(), input);
+	}
+
 	@Override
 	public AssistantOutput respond(
 			UserId actorId,

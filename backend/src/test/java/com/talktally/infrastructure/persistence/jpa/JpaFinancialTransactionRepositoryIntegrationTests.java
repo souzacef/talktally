@@ -73,7 +73,7 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 
 	@Test
 	void flywayCreatesSchemaSeedsCategoriesAndHibernateValidatesIt() {
-		assertEquals("2", flyway.info().current().getVersion().toString());
+		assertEquals("3", flyway.info().current().getVersion().toString());
 		assertEquals(15, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM category WHERE built_in = TRUE",
 				Integer.class));

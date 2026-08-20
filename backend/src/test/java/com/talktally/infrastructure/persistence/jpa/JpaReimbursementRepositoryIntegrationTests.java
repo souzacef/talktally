@@ -99,8 +99,8 @@ class JpaReimbursementRepositoryIntegrationTests {
 	}
 
 	@Test
-	void flywayV2AppliesAndPeopleAreOwnerScopedAndNormalizedUnique() {
-		assertEquals("2", flyway.info().current().getVersion().toString());
+	void flywayMigrationsApplyAndPeopleAreOwnerScopedAndNormalizedUnique() {
+		assertEquals("3", flyway.info().current().getVersion().toString());
 		PersonOutput jon = createPersonUseCase.execute(
 				USER_A, new CreatePersonInput("  Jon   Doe  "));
 

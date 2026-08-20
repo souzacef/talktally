@@ -34,9 +34,9 @@ export function ThemeControl({ showLabels = false, className }: { showLabels?: b
             title={t('theme.title', { theme: label })}
             onClick={() => setTheme(value)}
             className={cn(
-              'inline-flex h-8 items-center justify-center gap-1.5 rounded-full text-xs font-semibold text-muted-foreground transition-all',
+              'inline-flex h-8 items-center justify-center rounded-full font-semibold text-muted-foreground transition-all',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              showLabels ? 'min-w-0 flex-1 px-2' : 'px-2.5',
+              showLabels ? 'min-w-0 flex-1 gap-1 px-1.5 text-[0.7rem]' : 'gap-1.5 px-2.5 text-xs',
               theme === value && 'bg-card text-foreground shadow-sm',
             )}
           >

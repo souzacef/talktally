@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LOCALE_KEY, LocaleProvider } from '@/app/providers/locale-provider'
 import { ApiError } from '@/lib/api/api-client'
 import { queryKeys } from '@/lib/query/query-client'
 import { TransactionsPage } from '@/pages/transactions-page'
@@ -92,15 +93,18 @@ function renderPage() {
   })
   const invalidate = vi.spyOn(client, 'invalidateQueries')
   render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter><TransactionsPage /><LocationProbe /></MemoryRouter>
-    </QueryClientProvider>,
+    <LocaleProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter><TransactionsPage /><LocationProbe /></MemoryRouter>
+      </QueryClientProvider>
+    </LocaleProvider>,
   )
   return { invalidate, user: userEvent.setup() }
 }
 
 describe('TransactionsPage category catalog integration', () => {
   beforeEach(() => {
+    window.localStorage.setItem(LOCALE_KEY, 'en-US')
     mocks.categoryList.mockResolvedValue(categories)
     mocks.transactionList.mockResolvedValue(page([expense, reimbursement]))
     mocks.transactionCreate.mockResolvedValue(expense)
@@ -123,6 +127,19 @@ describe('TransactionsPage category catalog integration', () => {
     expect(document.body.textContent).not.toContain('Category food-id')
   })
 
+  it('renders transaction labels, categories, dates, and BRL amounts in pt-BR', async () => {
+    window.localStorage.setItem(LOCALE_KEY, 'pt-BR')
+    renderPage()
+
+    expect(screen.getByRole('heading', { name: 'Transações' })).toBeInTheDocument()
+    const expenseRow = (await screen.findByText('Coffee')).closest('li')
+    expect(expenseRow).not.toBeNull()
+    expect(within(expenseRow!).getByText('Alimentação')).toBeInTheDocument()
+    expect(within(expenseRow!).getByText('19/08/2026')).toBeInTheDocument()
+    expect(within(expenseRow!).getByText('Despesa')).toBeInTheDocument()
+    expect(within(expenseRow!).getByText(/R\$\s*12,34/)).toBeInTheDocument()
+  })
+
   it('uses category IDs internally when applying the friendly category filter', async () => {
     const { user } = renderPage()
     await screen.findByText('Coffee')
@@ -140,7 +157,7 @@ describe('TransactionsPage category catalog integration', () => {
     mocks.transactionList.mockResolvedValue(page([]))
     const { invalidate, user } = renderPage()
     await user.click(screen.getByRole('button', { name: 'Add transaction' }))
-    const createCard = screen.getByText(/Create an ordinary expense or income/)
+    const createCard = screen.getByText(/Record an expense or income/)
       .closest<HTMLElement>('[data-slot="card"]')
     expect(createCard).not.toBeNull()
     const form = within(createCard!)
@@ -162,7 +179,7 @@ describe('TransactionsPage category catalog integration', () => {
       installmentCount: 1,
     }))
     expect(await screen.findByText('Transaction created successfully.')).toBeInTheDocument()
-    expect(screen.queryByText(/Create an ordinary expense or income/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Record an expense or income/)).not.toBeInTheDocument()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.transactions.all })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.all })
   })

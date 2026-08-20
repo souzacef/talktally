@@ -3,24 +3,27 @@ import { Bot, HandCoins, House, LogOut, ReceiptText, Settings, X } from 'lucide-
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Brand, Tagline, Wordmark } from '@/components/brand/brand'
 import { Button } from '@/components/ui/button'
+import { LocaleControl } from '@/components/layout/locale-control'
 import { ThemeControl } from '@/components/layout/theme-control'
+import { useLocale } from '@/app/providers/locale-provider'
 import { useAuth } from '@/features/auth/auth-provider'
 import { cn } from '@/lib/utils'
 
 const navigation = [
-  { to: '/dashboard', label: 'Home', icon: House },
-  { to: '/transactions', label: 'Transactions', icon: ReceiptText },
-  { to: '/owed', label: 'Owed to Me', icon: HandCoins },
-  { to: '/assistant', label: 'Assistant', icon: Bot },
+  { to: '/dashboard', labelKey: 'nav.home' as const, icon: House },
+  { to: '/transactions', labelKey: 'nav.transactions' as const, icon: ReceiptText },
+  { to: '/owed', labelKey: 'nav.owed' as const, icon: HandCoins },
+  { to: '/assistant', labelKey: 'nav.assistant' as const, icon: Bot },
 ]
+
 function accountInitials(displayName: string | undefined): string {
   const initial = displayName?.trim().charAt(0).toUpperCase()
   return initial || '?'
 }
 
-
 export function AppShell() {
   const { signOut, user } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const [accountOpen, setAccountOpen] = useState(false)
 
@@ -37,7 +40,7 @@ export function AppShell() {
           <Tagline className="mt-3 block text-xs" />
         </div>
         <nav className="flex-1 space-y-1 px-3" aria-label="Desktop primary navigation">
-          {navigation.map(({ to, label, icon: Icon }) => (
+          {navigation.map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -50,25 +53,27 @@ export function AppShell() {
               )}
             >
               <Icon aria-hidden="true" className="size-4.5" />
-              {label}
+              {t(labelKey)}
             </NavLink>
           ))}
         </nav>
         <div className="space-y-5 border-t border-sidebar-border p-4">
           <div>
-            <p className="mb-2 px-1 text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">Appearance</p>
+            <p className="mb-2 px-1 text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">{t('shell.appearance')}</p>
             <ThemeControl showLabels className="w-full justify-between" />
+            <p className="mb-2 mt-4 px-1 text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">{t('shell.language')}</p>
+            <LocaleControl showLabels className="w-full justify-between" />
           </div>
           <div className="rounded-2xl border border-sidebar-border bg-card/60 p-3">
             <div className="mb-3 flex min-w-0 items-center gap-2.5">
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent font-heading text-sm font-semibold text-primary">{accountInitials(user?.displayName)}</span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold" title={user?.displayName}>{user?.displayName ?? 'Active account'}</p>
-                <p className="truncate text-xs text-muted-foreground" title={user?.email}>{user?.email ?? 'Identity unavailable'}</p>
+                <p className="truncate text-sm font-semibold" title={user?.displayName}>{user?.displayName ?? t('shell.activeAccount')}</p>
+                <p className="truncate text-xs text-muted-foreground" title={user?.email}>{user?.email ?? t('shell.identityUnavailable')}</p>
               </div>
             </div>
             <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={leaveSession}>
-              <LogOut aria-hidden="true" /> Sign out
+              <LogOut aria-hidden="true" /> {t('shell.signOut')}
             </Button>
           </div>
         </div>
@@ -82,18 +87,18 @@ export function AppShell() {
               <Wordmark className="text-lg" />
             </NavLink>
             <div className="hidden lg:block">
-              <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">Financial workspace</p>
+              <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">{t('shell.financialWorkspace')}</p>
             </div>
             <span className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground">
               <span className="size-2 rounded-full bg-voice shadow-[0_0_0_4px_var(--voice-soft)]" aria-hidden="true" />
-              <span className="hidden sm:inline">Secure session</span>
+              <span className="hidden sm:inline">{t('shell.secureSession')}</span>
             </span>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="lg:hidden"
-              aria-label="Open account settings"
+              aria-label={t('shell.openAccountSettings')}
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen(true)}
             >
@@ -112,7 +117,7 @@ export function AppShell() {
         aria-label="Mobile primary navigation"
       >
         <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
-          {navigation.map(({ to, label, icon: Icon }) => (
+          {navigation.map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -127,7 +132,7 @@ export function AppShell() {
                   <span className={cn('grid size-8 place-items-center rounded-xl', isActive && 'bg-accent')}>
                     <Icon className="size-4.5" aria-hidden="true" />
                   </span>
-                  <span className="truncate">{label}</span>
+                  <span className="truncate">{t(labelKey)}</span>
                 </>
               )}
             </NavLink>
@@ -137,7 +142,7 @@ export function AppShell() {
 
       {accountOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <button className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" aria-label="Close account settings" onClick={() => setAccountOpen(false)} />
+          <button className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" aria-label={t('shell.closeAccountSettings')} onClick={() => setAccountOpen(false)} />
           <section
             role="dialog"
             aria-modal="true"
@@ -146,18 +151,20 @@ export function AppShell() {
           >
             <div className="mb-5 flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">Account</p>
-                <h2 id="account-sheet-title" className="truncate font-heading text-lg font-semibold" title={user?.displayName}>{user?.displayName ?? 'Active account'}</h2>
-                <p className="truncate text-sm text-muted-foreground" title={user?.email}>{user?.email ?? 'Identity unavailable'}</p>
+                <p className="text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">{t('shell.account')}</p>
+                <h2 id="account-sheet-title" className="truncate font-heading text-lg font-semibold" title={user?.displayName}>{user?.displayName ?? t('shell.activeAccount')}</h2>
+                <p className="truncate text-sm text-muted-foreground" title={user?.email}>{user?.email ?? t('shell.identityUnavailable')}</p>
               </div>
-              <Button type="button" variant="ghost" size="icon" aria-label="Close account settings" onClick={() => setAccountOpen(false)}>
+              <Button type="button" variant="ghost" size="icon" aria-label={t('shell.closeAccountSettings')} onClick={() => setAccountOpen(false)}>
                 <X aria-hidden="true" />
               </Button>
             </div>
-            <p className="mb-2 text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">Appearance</p>
+            <p className="mb-2 text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">{t('shell.appearance')}</p>
             <ThemeControl showLabels className="mb-5 w-full justify-between" />
+            <p className="mb-2 text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">{t('shell.language')}</p>
+            <LocaleControl showLabels className="mb-5 w-full justify-between" />
             <Button variant="outline" className="w-full justify-center" onClick={leaveSession}>
-              <LogOut aria-hidden="true" /> Sign out
+              <LogOut aria-hidden="true" /> {t('shell.signOut')}
             </Button>
           </section>
         </div>

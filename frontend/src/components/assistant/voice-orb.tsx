@@ -1,16 +1,18 @@
 import { Check, CircleAlert, LoaderCircle, Mic, Square, VolumeX } from 'lucide-react'
+import { useLocale } from '@/app/providers/locale-provider'
 import { Button } from '@/components/ui/button'
+import { assistantText } from '@/features/assistant/assistant-messages'
 import type { VoiceWorkflowState } from '@/features/assistant/hooks/use-voice-assistant'
 import { cn } from '@/lib/utils'
 
-const stateContent: Record<VoiceWorkflowState, { label: string; icon: typeof Mic }> = {
-  idle: { label: 'Start microphone recording', icon: Mic },
-  recording: { label: 'Stop microphone recording', icon: Square },
-  processing: { label: 'Processing voice command', icon: LoaderCircle },
-  completed: { label: 'Voice command completed', icon: Check },
-  'needs-clarification': { label: 'Voice command needs clarification', icon: CircleAlert },
-  'speech-unavailable': { label: 'Voice reply unavailable', icon: VolumeX },
-  error: { label: 'Voice command failed', icon: CircleAlert },
+const stateContent: Record<VoiceWorkflowState, { key: Parameters<typeof assistantText>[1]; icon: typeof Mic }> = {
+  idle: { key: 'voiceStart', icon: Mic },
+  recording: { key: 'voiceStop', icon: Square },
+  processing: { key: 'voiceProcessing', icon: LoaderCircle },
+  completed: { key: 'voiceCompleted', icon: Check },
+  'needs-clarification': { key: 'voiceNeedsClarification', icon: CircleAlert },
+  'speech-unavailable': { key: 'voiceReplyUnavailableLabel', icon: VolumeX },
+  error: { key: 'voiceFailed', icon: CircleAlert },
 }
 
 interface VoiceOrbProps {
@@ -20,7 +22,9 @@ interface VoiceOrbProps {
 }
 
 export function VoiceOrb({ state, onClick, compact = false }: VoiceOrbProps) {
-  const { label, icon: Icon } = stateContent[state]
+  const { locale } = useLocale()
+  const { key, icon: Icon } = stateContent[state]
+  const label = assistantText(locale, key)
   const interactive = state === 'idle' || state === 'recording' || state === 'completed'
     || state === 'needs-clarification' || state === 'speech-unavailable' || state === 'error'
   const tone = state === 'completed'

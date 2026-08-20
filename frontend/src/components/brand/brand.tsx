@@ -1,3 +1,5 @@
+import { useLocale } from '@/app/providers/locale-provider'
+import { commonText } from '@/app/providers/common-messages'
 import { cn } from '@/lib/utils'
 
 interface BrandProps {
@@ -32,7 +34,8 @@ export function Wordmark({ className }: { className?: string }) {
 }
 
 export function Tagline({ className }: { className?: string }) {
-  return <span className={cn('text-sm text-muted-foreground', className)}>Speak it. Track it. Understand it.</span>
+  const { locale } = useLocale()
+  return <span className={cn('text-sm text-muted-foreground', className)}>{commonText(locale, 'tagline')}</span>
 }
 
 export function Brand({ className, compact = false }: BrandProps) {

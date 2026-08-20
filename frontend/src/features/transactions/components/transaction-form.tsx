@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useLocale } from '@/app/providers/locale-provider'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +9,7 @@ import {
   categorySupportsKind,
   ordinaryCategoriesForKind,
 } from '@/features/categories/category-presentation'
+import { transactionKindLabel, transactionText } from '@/features/transactions/transaction-messages'
 import type {
   Category,
   TransactionRequest,
@@ -59,20 +61,21 @@ function initialValues(transaction?: TransactionResponse): FormValues {
 function validationError(
   values: FormValues,
   categories: readonly Category[],
+  locale: 'en-US' | 'pt-BR',
 ): string | null {
-  if (!values.description.trim()) return 'Description is required.'
+  if (!values.description.trim()) return transactionText(locale, 'formDescriptionRequired')
   const normalizedAmount = normalizeAmount(values.amount)
   if (!/^\d+(?:\.\d{1,2})?$/.test(normalizedAmount) || Number(normalizedAmount) <= 0) {
-    return 'Amount must be positive and use at most two decimal places.'
+    return transactionText(locale, 'formAmountInvalid')
   }
-  if (!values.eventDate) return 'Event date is required.'
+  if (!values.eventDate) return transactionText(locale, 'formEventDateRequired')
   const installments = Number(values.installmentCount)
   if (!Number.isInteger(installments) || installments < 1 || installments > 120) {
-    return 'Installment count must be between 1 and 120.'
+    return transactionText(locale, 'formInstallmentsInvalid')
   }
   const category = categories.find((candidate) => candidate.id === values.categoryId)
   if (!category || !categorySupportsKind(category, values.kind)) {
-    return 'Select a category available for this transaction kind.'
+    return transactionText(locale, 'formCategoryInvalid')
   }
   return null
 }
@@ -88,6 +91,7 @@ export function TransactionForm({
   onSubmit,
   onCancel,
 }: TransactionFormProps) {
+  const { locale } = useLocale()
   const [values, setValues] = useState(() => initialValues(initialTransaction))
   const firstOccurrenceDateChanged = useRef(Boolean(initialTransaction))
   const [clientError, setClientError] = useState<string | null>(null)
@@ -107,7 +111,7 @@ export function TransactionForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const error = validationError(values, categories)
+    const error = validationError(values, categories, locale)
     if (error) {
       setClientError(error)
       return
@@ -128,19 +132,19 @@ export function TransactionForm({
     <form className="space-y-4" onSubmit={submit} noValidate>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="managed-transaction-kind">Kind</Label>
+          <Label htmlFor="managed-transaction-kind">{transactionText(locale, 'kind')}</Label>
           <select
             id="managed-transaction-kind"
             className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
             value={values.kind}
             onChange={(event) => changeKind(event.target.value as UserManagedTransactionKind)}
           >
-            <option value="EXPENSE">Expense</option>
-            <option value="INCOME">Income</option>
+            <option value="EXPENSE">{transactionKindLabel('EXPENSE', locale)}</option>
+            <option value="INCOME">{transactionKindLabel('INCOME', locale)}</option>
           </select>
         </div>
         <div className="space-y-2 md:col-span-1 xl:col-span-2">
-          <Label htmlFor="managed-transaction-description">Description</Label>
+          <Label htmlFor="managed-transaction-description">{transactionText(locale, 'description')}</Label>
           <Input
             id="managed-transaction-description"
             value={values.description}
@@ -150,12 +154,12 @@ export function TransactionForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="managed-transaction-amount">Amount</Label>
+          <Label htmlFor="managed-transaction-amount">{transactionText(locale, 'amount')}</Label>
           <Input
             id="managed-transaction-amount"
             type="text"
             inputMode="decimal"
-            placeholder="0.00"
+            placeholder={locale === 'pt-BR' ? '0,00' : '0.00'}
             value={values.amount}
             onChange={(event) => {
               const candidate = event.target.value
@@ -167,7 +171,7 @@ export function TransactionForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="managed-transaction-category">Category</Label>
+          <Label htmlFor="managed-transaction-category">{transactionText(locale, 'category')}</Label>
           <select
             id="managed-transaction-category"
             className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
@@ -178,18 +182,18 @@ export function TransactionForm({
           >
             <option value="">
               {categoriesPending
-                ? 'Loading categories…'
+                ? transactionText(locale, 'loadingCategories')
                 : categoriesError
-                  ? 'Categories unavailable'
-                  : 'Select a category'}
+                  ? transactionText(locale, 'categoriesUnavailable')
+                  : transactionText(locale, 'selectCategory')}
             </option>
             {compatibleCategories.map((category) => (
-              <option key={category.id} value={category.id}>{categoryLabel(category)}</option>
+              <option key={category.id} value={category.id}>{categoryLabel(category, locale)}</option>
             ))}
           </select>
         </div>
         <div className="space-y-2 xl:col-start-1">
-          <Label htmlFor="managed-transaction-date">Event date</Label>
+          <Label htmlFor="managed-transaction-date">{transactionText(locale, 'eventDate')}</Label>
           <Input
             id="managed-transaction-date"
             type="date"
@@ -208,11 +212,11 @@ export function TransactionForm({
             required
           />
           <p id="managed-transaction-date-help" className="text-xs text-muted-foreground">
-            When the transaction happened.
+            {transactionText(locale, 'eventDateHelp')}
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="managed-transaction-first-occurrence-date">First cash-flow date</Label>
+          <Label htmlFor="managed-transaction-first-occurrence-date">{transactionText(locale, 'firstCashFlowDate')}</Label>
           <Input
             id="managed-transaction-first-occurrence-date"
             type="date"
@@ -231,11 +235,11 @@ export function TransactionForm({
             id="managed-transaction-first-occurrence-date-help"
             className="text-xs text-muted-foreground"
           >
-            When this transaction first affects your cash flow.
+            {transactionText(locale, 'firstCashFlowDateHelp')}
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="managed-transaction-installments">Installments</Label>
+          <Label htmlFor="managed-transaction-installments">{transactionText(locale, 'installmentsTitle')}</Label>
           <Input
             id="managed-transaction-installments"
             type="number"
@@ -256,14 +260,14 @@ export function TransactionForm({
       )}
       {categoriesError && !clientError && !serverError && (
         <Alert variant="destructive">
-          <AlertDescription>Categories could not be loaded. Try again before saving.</AlertDescription>
+          <AlertDescription>{transactionText(locale, 'categoriesLoadFailed')}</AlertDescription>
         </Alert>
       )}
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>{transactionText(locale, 'cancel')}</Button>
         <Button type="submit" disabled={isSubmitting || categoriesPending || categoriesError}>
-          {isSubmitting ? 'Saving…' : submitLabel}
+          {isSubmitting ? transactionText(locale, 'saving') : submitLabel}
         </Button>
       </div>
     </form>

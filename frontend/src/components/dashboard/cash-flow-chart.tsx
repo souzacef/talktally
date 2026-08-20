@@ -1,18 +1,21 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { formatBrl } from '@/lib/money/format-brl'
+import { useLocale } from '@/app/providers/locale-provider'
 import type { MonthlyCashFlowResponse } from '@/types/api'
 
 export function CashFlowChart({ buckets }: { buckets: MonthlyCashFlowResponse['buckets'] }) {
+  const { locale, t, formatMoney } = useLocale()
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' })
+
   // Recharts requires numeric display coordinates. These are direct conversions
   // of backend-computed values; no totals or financial arithmetic happen here.
   const data = buckets.map((bucket) => ({
-    label: new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(bucket.year, bucket.month - 1, 1)),
+    label: monthFormatter.format(new Date(Date.UTC(bucket.year, bucket.month - 1, 1))),
     earnedIncome: Number(bucket.earnedIncome),
     expenses: Number(bucket.expenses),
   }))
 
   return (
-    <div className="h-64 min-w-0" aria-label="Monthly cash flow chart">
+    <div className="h-64 min-w-0" aria-label={t('dashboard.chartLabel')}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 4, left: -18, bottom: 0 }} accessibilityLayer>
           <defs>
@@ -38,8 +41,8 @@ export function CashFlowChart({ buckets }: { buckets: MonthlyCashFlowResponse['b
               boxShadow: 'var(--shadow-soft)',
             }}
             formatter={(value, name) => [
-              formatBrl(String(value)),
-              name === 'earnedIncome' ? 'Income' : 'Expenses',
+              formatMoney(String(value)),
+              name === 'earnedIncome' ? t('dashboard.income') : t('dashboard.expenses'),
             ]}
           />
           <Area type="monotone" dataKey="earnedIncome" stroke="var(--income)" fill="url(#income-fill)" strokeWidth={2} />

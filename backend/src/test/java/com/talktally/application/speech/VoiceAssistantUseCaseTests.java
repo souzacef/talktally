@@ -1,5 +1,7 @@
 package com.talktally.application.speech;
 
+import com.talktally.application.assistant.AssistantConversationMessage;
+import com.talktally.application.assistant.AssistantConversationPort;
 import com.talktally.application.assistant.AssistantInput;
 import com.talktally.application.assistant.AssistantOutput;
 import com.talktally.application.assistant.AssistantStatus;
@@ -14,6 +16,7 @@ import com.talktally.domain.UserId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -39,7 +42,9 @@ class VoiceAssistantUseCaseTests {
 		assistant = new FakeChatAssistantPort();
 		textToSpeech = new FakeTextToSpeechPort();
 		useCase = new VoiceAssistantUseCase(
-				speechToText, new AssistantUseCase(assistant), textToSpeech);
+				speechToText,
+				new AssistantUseCase(assistant, new FakeConversationPort()),
+				textToSpeech);
 	}
 
 	@Test
@@ -174,6 +179,7 @@ class VoiceAssistantUseCaseTests {
 		public AssistantOutput respond(
 				UserId actorId,
 				TransactionSource source,
+				List<AssistantConversationMessage> history,
 				AssistantInput input) {
 			calls++;
 			this.actorId = actorId;
@@ -183,6 +189,26 @@ class VoiceAssistantUseCaseTests {
 				throw failure;
 			}
 			return output;
+		}
+	}
+
+	private static final class FakeConversationPort implements AssistantConversationPort {
+
+		@Override
+		public List<AssistantConversationMessage> findRecent(UserId actorId, int limit) {
+			return List.of();
+		}
+
+		@Override
+		public void appendExchange(
+				UserId actorId,
+				TransactionSource source,
+				String userMessage,
+				AssistantOutput assistantOutput) {
+		}
+
+		@Override
+		public void clear(UserId actorId) {
 		}
 	}
 

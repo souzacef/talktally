@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LocaleProvider } from '@/app/providers/locale-provider'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { OwedPage } from '@/pages/owed-page'
 import { TransactionsPage } from '@/pages/transactions-page'
@@ -49,9 +50,11 @@ function renderPage(page: React.ReactNode) {
   })
   return render(
     <QueryClientProvider client={client}>
-      <AuthProvider session={session} privateQueryClient={client}>
-        <MemoryRouter>{page}</MemoryRouter>
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider session={session} privateQueryClient={client}>
+          <MemoryRouter>{page}</MemoryRouter>
+        </AuthProvider>
+      </LocaleProvider>
     </QueryClientProvider>,
   )
 }

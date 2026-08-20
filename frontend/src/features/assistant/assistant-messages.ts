@@ -26,6 +26,13 @@ const enUS = {
   voiceUnavailable: 'Voice reply unavailable — result still succeeded.',
   voiceReply: 'Voice reply',
   audioUnsupported: 'Audio playback is not supported.',
+  voiceStart: 'Start microphone recording',
+  voiceStop: 'Stop microphone recording',
+  voiceProcessing: 'Processing voice command',
+  voiceCompleted: 'Voice command completed',
+  voiceNeedsClarification: 'Voice command needs clarification',
+  voiceReplyUnavailableLabel: 'Voice reply unavailable',
+  voiceFailed: 'Voice command failed',
 } as const
 
 type AssistantMessageKey = keyof typeof enUS
@@ -55,6 +62,13 @@ const ptBR: Record<AssistantMessageKey, string> = {
   voiceUnavailable: 'Resposta por voz indisponível — o resultado foi concluído mesmo assim.',
   voiceReply: 'Resposta por voz',
   audioUnsupported: 'A reprodução de áudio não é compatível.',
+  voiceStart: 'Iniciar gravação do microfone',
+  voiceStop: 'Parar gravação do microfone',
+  voiceProcessing: 'Processando comando de voz',
+  voiceCompleted: 'Comando de voz concluído',
+  voiceNeedsClarification: 'Comando de voz precisa de esclarecimento',
+  voiceReplyUnavailableLabel: 'Resposta por voz indisponível',
+  voiceFailed: 'Falha no comando de voz',
 }
 
 const messages: Record<AppLocale, Record<AssistantMessageKey, string>> = {

@@ -1,5 +1,7 @@
 package com.talktally.infrastructure.ai;
 
+import com.talktally.application.assistant.AssistantConversationPort;
+import com.talktally.application.assistant.AssistantConversationUseCase;
 import com.talktally.application.assistant.AssistantUseCase;
 import com.talktally.application.assistant.ChatAssistantPort;
 import com.talktally.application.assistant.exception.AssistantUnavailableException;
@@ -14,8 +16,16 @@ import org.springframework.core.io.Resource;
 public class AssistantAiConfiguration {
 
 	@Bean
-	AssistantUseCase assistantUseCase(ChatAssistantPort chatAssistantPort) {
-		return new AssistantUseCase(chatAssistantPort);
+	AssistantUseCase assistantUseCase(
+			ChatAssistantPort chatAssistantPort,
+			AssistantConversationPort conversationPort) {
+		return new AssistantUseCase(chatAssistantPort, conversationPort);
+	}
+
+	@Bean
+	AssistantConversationUseCase assistantConversationUseCase(
+			AssistantConversationPort conversationPort) {
+		return new AssistantConversationUseCase(conversationPort);
 	}
 
 	@Bean
@@ -28,7 +38,7 @@ public class AssistantAiConfiguration {
 					"classpath:prompts/talktally-system.txt") Resource systemPrompt) {
 		ChatModel chatModel = chatModelProvider.getIfAvailable();
 		if (chatModel == null) {
-			return (actorId, source, input) -> {
+			return (actorId, source, history, input) -> {
 				throw new AssistantUnavailableException();
 			};
 		}

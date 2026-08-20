@@ -71,10 +71,10 @@ export function ProtectedBadge({ label = 'Protected' }: { label?: string }) {
   )
 }
 
-export function ClaimStatusBadge({ status }: { status: ReimbursementStatus }) {
+export function ClaimStatusBadge({ status, label }: { status: ReimbursementStatus; label?: string }) {
   return (
     <span className={cn('inline-flex rounded-full px-2.5 py-1 text-[0.68rem] font-semibold tracking-wide uppercase', claimStyles[status])}>
-      {status.replace('_', ' ')}
+      {label ?? status.replace('_', ' ')}
     </span>
   )
 }

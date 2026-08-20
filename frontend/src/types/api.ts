@@ -13,6 +13,7 @@ export type CategoryAllowedKind = TransactionKind | 'ANY'
 export type TransactionSource = 'MANUAL' | 'ASSISTANT_TEXT' | 'VOICE'
 export type ReimbursementStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID'
 export type AssistantStatus = 'COMPLETED' | 'NEEDS_CLARIFICATION'
+export type AssistantConversationRole = 'USER' | 'ASSISTANT'
 export type SpeechStatus = 'GENERATED' | 'UNAVAILABLE'
 
 export interface ApiErrorPayload {
@@ -240,6 +241,15 @@ export interface AssistantMessageRequest {
 export interface AssistantMessageResponse {
   message: string
   status: AssistantStatus
+}
+
+export interface AssistantConversationMessageResponse {
+  id: number
+  role: AssistantConversationRole
+  content: string
+  source: TransactionSource | null
+  status: AssistantStatus | null
+  createdAt: IsoInstant
 }
 
 export interface VoiceAssistantResponse {

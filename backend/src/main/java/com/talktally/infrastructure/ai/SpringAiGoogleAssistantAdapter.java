@@ -1,5 +1,7 @@
 package com.talktally.infrastructure.ai;
 
+import com.talktally.application.assistant.AssistantConversationMessage;
+import com.talktally.application.assistant.AssistantConversationRole;
 import com.talktally.application.assistant.AssistantInput;
 import com.talktally.application.assistant.AssistantOutput;
 import com.talktally.application.assistant.AssistantStatus;
@@ -8,8 +10,12 @@ import com.talktally.application.assistant.exception.AssistantUnavailableExcepti
 import com.talktally.domain.TransactionSource;
 import com.talktally.domain.UserId;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.core.io.Resource;
 
+import java.util.List;
 import java.util.Objects;
 
 public class SpringAiGoogleAssistantAdapter implements ChatAssistantPort {
@@ -40,6 +46,7 @@ public class SpringAiGoogleAssistantAdapter implements ChatAssistantPort {
 	public AssistantOutput respond(
 			UserId actorId,
 			TransactionSource source,
+			List<AssistantConversationMessage> history,
 			AssistantInput input) {
 		try {
 			String response = chatClient.prompt()
@@ -47,6 +54,7 @@ public class SpringAiGoogleAssistantAdapter implements ChatAssistantPort {
 							.text(systemPrompt)
 							.param("ordinaryTransactionCategories",
 									OrdinaryTransactionCategoryVocabulary.systemPromptGuidance()))
+					.messages(toSpringMessages(history))
 					.user(input.message())
 					.tools(approvedTools)
 					.toolContext(AssistantToolContext.create(actorId, source))
@@ -63,6 +71,16 @@ public class SpringAiGoogleAssistantAdapter implements ChatAssistantPort {
 		catch (Exception exception) {
 			throw new AssistantUnavailableException(exception);
 		}
+	}
+
+	private static List<Message> toSpringMessages(List<AssistantConversationMessage> history) {
+		Objects.requireNonNull(history, "history must not be null");
+		return history.stream()
+				.map(message -> message.role() == AssistantConversationRole.USER
+						? UserMessage.builder().text(message.content()).build()
+						: AssistantMessage.builder().content(message.content()).build())
+				.map(Message.class::cast)
+				.toList();
 	}
 
 	private static AssistantOutput toOutput(String response) {

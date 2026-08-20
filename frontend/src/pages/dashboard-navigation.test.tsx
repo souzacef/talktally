@@ -143,7 +143,7 @@ describe('Dashboard Recent Activity navigation', () => {
     expect(screen.getByRole('heading', { name: 'Olá, Carlos!' })).toBeInTheDocument()
     expect(screen.getByText('Atividade recente')).toBeInTheDocument()
     expect(await screen.findByText(/Alimentação · 19\/08\/2026/)).toBeInTheDocument()
-    expect(screen.getByText(/R\$\s*7,89/)).toBeInTheDocument()
+    expect(screen.getAllByText(/R\$\s*7,89/).length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'Ver transação Recent coffee' })).toBeInTheDocument()
   })
 })

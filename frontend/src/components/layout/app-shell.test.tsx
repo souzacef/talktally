@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
+import { LocaleProvider } from '@/app/providers/locale-provider'
 import { AppShell } from '@/components/layout/app-shell'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
@@ -26,18 +27,20 @@ describe('AppShell', () => {
     session.setAuthenticated('shell-token', activeUser)
 
     render(
-      <ThemeProvider>
-        <AuthProvider session={session} privateQueryClient={privateQueryClient}>
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route element={<AppShell />}>
-                <Route path="/dashboard" element={<p>Dashboard content</p>} />
-              </Route>
-              <Route path="/login" element={<p>Signed out</p>} />
-            </Routes>
-          </MemoryRouter>
-        </AuthProvider>
-      </ThemeProvider>,
+      <LocaleProvider>
+        <ThemeProvider>
+          <AuthProvider session={session} privateQueryClient={privateQueryClient}>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route element={<AppShell />}>
+                  <Route path="/dashboard" element={<p>Dashboard content</p>} />
+                </Route>
+                <Route path="/login" element={<p>Signed out</p>} />
+              </Routes>
+            </MemoryRouter>
+          </AuthProvider>
+        </ThemeProvider>
+      </LocaleProvider>,
     )
 
     expect(screen.getByRole('navigation', { name: 'Desktop primary navigation' })).toBeInTheDocument()
@@ -53,5 +56,35 @@ describe('AppShell', () => {
     expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()
     expect(window.sessionStorage.getItem(AUTHENTICATED_USER_KEY)).toBeNull()
     expect(await screen.findByText('Signed out')).toBeInTheDocument()
+  })
+
+  it('switches the shell to Brazilian Portuguese and persists the locale', async () => {
+    const session = new AuthSession(window.sessionStorage)
+    const privateQueryClient = new QueryClient()
+    session.setAuthenticated('shell-token', activeUser)
+
+    render(
+      <LocaleProvider>
+        <ThemeProvider>
+          <AuthProvider session={session} privateQueryClient={privateQueryClient}>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route element={<AppShell />}>
+                  <Route path="/dashboard" element={<p>Dashboard content</p>} />
+                </Route>
+              </Routes>
+            </MemoryRouter>
+          </AuthProvider>
+        </ThemeProvider>
+      </LocaleProvider>,
+    )
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Português' })[0])
+
+    expect(window.localStorage.getItem('talktally.locale')).toBe('pt-BR')
+    expect(document.documentElement.lang).toBe('pt-BR')
+    expect(screen.getAllByText('Transações').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Aparência').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Sair').length).toBeGreaterThan(0)
   })
 })

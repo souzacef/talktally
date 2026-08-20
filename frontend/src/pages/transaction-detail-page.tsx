@@ -153,7 +153,13 @@ export function TransactionDetailPage() {
 
       {isReceipt && (
         <Alert className="border-reimbursement/25 bg-reimbursement-soft/50">
-          <AlertDescription>{transactionText(locale, 'receiptManaged')}</AlertDescription>
+          <AlertDescription>
+            {transactionText(locale, 'receiptManagedPrefix')}
+            <Link to="/owed" className="font-semibold text-primary underline-offset-4 hover:underline">
+              {transactionText(locale, 'receiptManagedLink')}
+            </Link>
+            {transactionText(locale, 'receiptManagedSuffix')}
+          </AlertDescription>
         </Alert>
       )}
 

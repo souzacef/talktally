@@ -238,6 +238,10 @@ class JpaReimbursementRepositoryIntegrationTests {
 						new BigDecimal("10.00"), EVENT_DATE, null));
 		ReimbursementClaim claim = claimRepository.findById(
 				USER_A, created.claim().claimId()).orElseThrow();
+		assertTrue(claimRepository.findByIdForRepayment(
+				USER_A, created.claim().claimId()).isPresent());
+		assertFalse(claimRepository.findByIdForRepayment(
+				USER_B, created.claim().claimId()).isPresent());
 
 		claimRepository.save(claim);
 

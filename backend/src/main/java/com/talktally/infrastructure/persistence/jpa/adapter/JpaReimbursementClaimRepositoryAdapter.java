@@ -86,6 +86,18 @@ public class JpaReimbursementClaimRepositoryAdapter implements ReimbursementClai
 	}
 
 	@Override
+	@Transactional
+	public Optional<ReimbursementClaim> findByIdForRepayment(
+			UserId ownerId,
+			ReimbursementClaimId claimId) {
+		Objects.requireNonNull(ownerId, "owner id must not be null");
+		Objects.requireNonNull(claimId, "claim id must not be null");
+		return claimRepository.findByIdAndUserIdForUpdate(
+					claimId.value(), ownerId.value())
+				.map(this::toDomain);
+	}
+
+	@Override
 	public ReimbursementClaimPage search(
 			UserId ownerId,
 			ReimbursementClaimSearchCriteria criteria) {

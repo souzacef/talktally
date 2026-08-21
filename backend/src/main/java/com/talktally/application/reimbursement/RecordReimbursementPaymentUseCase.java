@@ -64,7 +64,7 @@ public class RecordReimbursementPaymentUseCase {
 		if (input == null || input.amount() == null || input.receivedDate() == null) {
 			throw invalid("payment amount and received date are required");
 		}
-		ReimbursementClaim claim = claimRepository.findById(actorId, claimId)
+		ReimbursementClaim claim = claimRepository.findByIdForRepayment(actorId, claimId)
 				.orElseThrow(() -> new ReimbursementClaimNotFoundException(claimId));
 		Person person = personRepository.findById(actorId, claim.personId())
 				.orElseThrow(() -> new PersonNotFoundException(claim.personId()));

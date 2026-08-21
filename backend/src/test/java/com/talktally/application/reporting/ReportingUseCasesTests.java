@@ -222,6 +222,12 @@ class ReportingUseCasesTests {
 		}
 
 		@Override
+		public Optional<ReimbursementClaim> findByIdForRepayment(
+				UserId ownerId, ReimbursementClaimId claimId) {
+			return findById(ownerId, claimId);
+		}
+
+		@Override
 		public ReimbursementClaimPage search(
 				UserId ownerId, ReimbursementClaimSearchCriteria criteria) {
 			int from = Math.min(criteria.page() * criteria.size(), claims.size());

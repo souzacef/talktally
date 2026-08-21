@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { HandCoins, History, Users } from 'lucide-react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocale } from '@/app/providers/locale-provider'
@@ -22,7 +22,7 @@ import { currentMonthRange } from '@/lib/dates/reporting-periods'
 import { queryKeys } from '@/lib/query/query-client'
 import type { ReimbursementPaymentRequest } from '@/types/api'
 
-const claimsParams = { page: 0, size: 20 } as const
+const CLAIMS_PAGE_SIZE = 20
 
 function initials(displayName: string): string {
   return displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || '?'
@@ -36,6 +36,8 @@ export function OwedPage() {
     params?: Parameters<typeof reimbursementText>[2],
   ) => reimbursementText(locale, key, params)
   const period = currentMonthRange()
+  const [claimsPage, setClaimsPage] = useState(0)
+  const claimsParams = { page: claimsPage, size: CLAIMS_PAGE_SIZE }
   const categories = useCategories()
   const summary = useFinancialSummary(period.from, period.to)
   const people = useQuery({
@@ -56,6 +58,17 @@ export function OwedPage() {
   const [amount, setAmount] = useState('')
   const [receivedDate, setReceivedDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState('')
+
+  useEffect(() => {
+    if (!claims.data || claimsPage === 0) return
+    if (claims.data.totalPages === 0) {
+      setClaimsPage(0)
+      return
+    }
+    if (claims.data.items.length === 0 && claimsPage >= claims.data.totalPages) {
+      setClaimsPage(claims.data.totalPages - 1)
+    }
+  }, [claims.data, claimsPage])
 
   const payment = useMutation({
     mutationFn: ({ claimId, request }: { claimId: string; request: ReimbursementPaymentRequest }) =>
@@ -200,6 +213,37 @@ export function OwedPage() {
               </article>
             ))}
           </div>
+          {claims.data && claims.data.totalPages > 1 && (
+            <nav
+              className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"
+              aria-label={text('claimsPaginationLabel')}
+            >
+              <Button
+                type="button"
+                variant="outline"
+                disabled={claims.data.page === 0}
+                onClick={() => setClaimsPage((current) => Math.max(0, current - 1))}
+              >
+                {text('previous')}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {text('pageOf', {
+                  page: claims.data.page + 1,
+                  total: claims.data.totalPages,
+                })}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={claims.data.page + 1 >= claims.data.totalPages}
+                onClick={() => setClaimsPage((current) => (
+                  Math.min(current + 1, claims.data.totalPages - 1)
+                ))}
+              >
+                {text('next')}
+              </Button>
+            </nav>
+          )}
         </CardContent>
       </Card>
     </section>

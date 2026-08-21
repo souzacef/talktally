@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   categoryLabel,
   categorySupportsKind,
@@ -12,16 +13,32 @@ import {
 import { transactionKindLabel, transactionText } from '@/features/transactions/transaction-messages'
 import type {
   Category,
+  CreateReimbursementRequest,
+  PersonResponse,
   TransactionRequest,
   TransactionResponse,
   UserManagedTransactionKind,
 } from '@/types/api'
+
+interface ReimbursementCreationOptions {
+  people: readonly PersonResponse[]
+  peoplePending: boolean
+  peopleError: boolean
+  isSubmitting: boolean
+  serverError?: string
+  personCreationPending: boolean
+  personCreationError?: string
+  onCreatePerson: (displayName: string) => Promise<PersonResponse>
+  onSubmit: (request: CreateReimbursementRequest) => void
+  onResetErrors: () => void
+}
 
 interface TransactionFormProps {
   categories: readonly Category[]
   categoriesPending: boolean
   categoriesError: boolean
   initialTransaction?: TransactionResponse
+  reimbursementCreation?: ReimbursementCreationOptions
   isSubmitting: boolean
   serverError?: string
   submitLabel: string
@@ -43,6 +60,14 @@ const AMOUNT_INPUT_PATTERN = /^(?:\d+(?:[.,]\d{0,2})?)?$/
 
 function normalizeAmount(amount: string): string {
   return amount.replace(',', '.')
+}
+
+function amountInCents(amount: string): bigint | null {
+  const normalized = normalizeAmount(amount)
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null
+  const [whole, fraction = ''] = normalized.split('.')
+  const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'))
+  return cents > 0n ? cents : null
 }
 
 function initialValues(transaction?: TransactionResponse): FormValues {
@@ -85,6 +110,7 @@ export function TransactionForm({
   categoriesPending,
   categoriesError,
   initialTransaction,
+  reimbursementCreation,
   isSubmitting,
   serverError,
   submitLabel,
@@ -94,8 +120,38 @@ export function TransactionForm({
   const { locale } = useLocale()
   const [values, setValues] = useState(() => initialValues(initialTransaction))
   const firstOccurrenceDateChanged = useRef(Boolean(initialTransaction))
+  const reimbursementGeneration = useRef(0)
   const [clientError, setClientError] = useState<string | null>(null)
+  const [reimbursementEnabled, setReimbursementEnabled] = useState(false)
+  const [personId, setPersonId] = useState('')
+  const [amountOwed, setAmountOwed] = useState('')
+  const [claimNote, setClaimNote] = useState('')
+  const [addingPerson, setAddingPerson] = useState(false)
+  const [newPersonName, setNewPersonName] = useState('')
+  const [personClientError, setPersonClientError] = useState<string | null>(null)
   const compatibleCategories = ordinaryCategoriesForKind(categories, values.kind)
+  const canCreateReimbursement = Boolean(reimbursementCreation && !initialTransaction)
+  const reimbursementMode = canCreateReimbursement
+    && values.kind === 'EXPENSE'
+    && reimbursementEnabled
+  const currentServerError = reimbursementMode
+    ? reimbursementCreation?.serverError
+    : serverError
+  const currentlySubmitting = reimbursementMode
+    ? reimbursementCreation?.isSubmitting ?? false
+    : isSubmitting
+
+  function clearReimbursementState() {
+    reimbursementGeneration.current += 1
+    setReimbursementEnabled(false)
+    setPersonId('')
+    setAmountOwed('')
+    setClaimNote('')
+    setAddingPerson(false)
+    setNewPersonName('')
+    setPersonClientError(null)
+    reimbursementCreation?.onResetErrors()
+  }
 
   function changeKind(nextKind: UserManagedTransactionKind) {
     const selected = categories.find((category) => category.id === values.categoryId)
@@ -107,6 +163,9 @@ export function TransactionForm({
         : '',
     }))
     setClientError(null)
+    if (nextKind !== 'EXPENSE') {
+      clearReimbursementState()
+    }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -117,7 +176,7 @@ export function TransactionForm({
       return
     }
     setClientError(null)
-    onSubmit({
+    const transactionRequest: TransactionRequest = {
       kind: values.kind,
       description: values.description.trim(),
       amount: normalizeAmount(values.amount),
@@ -125,7 +184,58 @@ export function TransactionForm({
       eventDate: values.eventDate,
       firstOccurrenceDate: values.firstOccurrenceDate || values.eventDate,
       installmentCount: Number(values.installmentCount),
+    }
+    if (!reimbursementMode || !reimbursementCreation) {
+      onSubmit(transactionRequest)
+      return
+    }
+    if (!personId) {
+      setClientError(transactionText(locale, 'formPersonRequired'))
+      return
+    }
+    const expenseCents = amountInCents(values.amount)
+    const owedCents = amountOwed ? amountInCents(amountOwed) : null
+    if (amountOwed && owedCents === null) {
+      setClientError(transactionText(locale, 'formAmountOwedInvalid'))
+      return
+    }
+    if (owedCents !== null && expenseCents !== null && owedCents > expenseCents) {
+      setClientError(transactionText(locale, 'formAmountOwedExceedsExpense'))
+      return
+    }
+    reimbursementCreation.onSubmit({
+      description: transactionRequest.description,
+      amount: transactionRequest.amount,
+      categoryId: transactionRequest.categoryId,
+      eventDate: transactionRequest.eventDate,
+      firstOccurrenceDate: transactionRequest.firstOccurrenceDate,
+      installmentCount: transactionRequest.installmentCount,
+      personId,
+      amountOwed: amountOwed ? normalizeAmount(amountOwed) : null,
+      note: claimNote.trim() || null,
     })
+  }
+
+  async function createPerson() {
+    if (!reimbursementCreation) return
+    const displayName = newPersonName.trim()
+    if (!displayName) {
+      setPersonClientError(transactionText(locale, 'formPersonNameRequired'))
+      return
+    }
+    setPersonClientError(null)
+    reimbursementCreation.onResetErrors()
+    const generation = reimbursementGeneration.current
+    try {
+      const person = await reimbursementCreation.onCreatePerson(displayName)
+      if (generation !== reimbursementGeneration.current) return
+      setPersonId(person.id)
+      setNewPersonName('')
+      setAddingPerson(false)
+    }
+    catch {
+      // The mutation error remains visible beside the independent person action.
+    }
   }
 
   return (
@@ -253,12 +363,160 @@ export function TransactionForm({
         </div>
       </div>
 
-      {(clientError || serverError) && (
+      {canCreateReimbursement && values.kind === 'EXPENSE' && (
+        <section
+          className="rounded-2xl border border-reimbursement/20 bg-reimbursement-soft/35 p-4"
+          aria-labelledby="reimbursement-option-label"
+        >
+          <div className="flex items-start gap-3">
+            <input
+              id="reimbursement-option"
+              type="checkbox"
+              className="mt-1 size-4 shrink-0 accent-reimbursement"
+              checked={reimbursementEnabled}
+              aria-describedby="reimbursement-option-help"
+              onChange={(event) => {
+                setClientError(null)
+                if (event.target.checked) {
+                  reimbursementCreation?.onResetErrors()
+                  setReimbursementEnabled(true)
+                }
+                else {
+                  clearReimbursementState()
+                }
+              }}
+            />
+            <div>
+              <Label id="reimbursement-option-label" htmlFor="reimbursement-option">
+                {transactionText(locale, 'someoneOwesMe')}
+              </Label>
+              <p id="reimbursement-option-help" className="mt-1 text-xs text-muted-foreground">
+                {transactionText(locale, 'reimbursementHelper')}
+              </p>
+            </div>
+          </div>
+
+          {reimbursementMode && reimbursementCreation && (
+            <div className="mt-4 grid gap-4 border-t border-reimbursement/15 pt-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="reimbursement-person">{transactionText(locale, 'person')}</Label>
+                <select
+                  id="reimbursement-person"
+                  className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  value={personId}
+                  onChange={(event) => {
+                    setPersonId(event.target.value)
+                    setClientError(null)
+                  }}
+                  disabled={reimbursementCreation.peoplePending}
+                  required
+                >
+                  <option value="">
+                    {reimbursementCreation.peoplePending
+                      ? transactionText(locale, 'loadingPeople')
+                      : transactionText(locale, 'selectPerson')}
+                  </option>
+                  {reimbursementCreation.people.map((person) => (
+                    <option key={person.id} value={person.id}>{person.displayName}</option>
+                  ))}
+                </select>
+                {reimbursementCreation.peopleError && (
+                  <p className="text-xs text-destructive" role="status">
+                    {transactionText(locale, 'peopleUnavailableForReimbursement')}
+                  </p>
+                )}
+                {!reimbursementCreation.peoplePending
+                  && !reimbursementCreation.peopleError
+                  && reimbursementCreation.people.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {transactionText(locale, 'noPeopleForReimbursement')}
+                  </p>
+                )}
+                {!addingPerson ? (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => {
+                    setAddingPerson(true)
+                    setPersonClientError(null)
+                    reimbursementCreation.onResetErrors()
+                  }}>
+                    {transactionText(locale, 'addNewPerson')}
+                  </Button>
+                ) : (
+                  <div className="space-y-2 rounded-xl border bg-card p-3">
+                    <Label htmlFor="reimbursement-new-person">{transactionText(locale, 'personName')}</Label>
+                    <Input
+                      id="reimbursement-new-person"
+                      value={newPersonName}
+                      maxLength={120}
+                      onChange={(event) => {
+                        setNewPersonName(event.target.value)
+                        setPersonClientError(null)
+                      }}
+                    />
+                    {(personClientError || reimbursementCreation.personCreationError) && (
+                      <p className="text-xs text-destructive" role="alert">
+                        {personClientError ?? reimbursementCreation.personCreationError}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button type="button" size="sm" variant="ghost" onClick={() => {
+                        setAddingPerson(false)
+                        setNewPersonName('')
+                        setPersonClientError(null)
+                        reimbursementCreation.onResetErrors()
+                      }}>
+                        {transactionText(locale, 'cancel')}
+                      </Button>
+                      <Button type="button" size="sm" disabled={reimbursementCreation.personCreationPending} onClick={() => void createPerson()}>
+                        {reimbursementCreation.personCreationPending
+                          ? transactionText(locale, 'creatingPerson')
+                          : transactionText(locale, 'createPerson')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reimbursement-amount-owed">{transactionText(locale, 'amountOwed')}</Label>
+                <Input
+                  id="reimbursement-amount-owed"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder={locale === 'pt-BR' ? '0,00' : '0.00'}
+                  value={amountOwed}
+                  aria-describedby="reimbursement-amount-owed-help"
+                  onChange={(event) => {
+                    const candidate = event.target.value
+                    if (AMOUNT_INPUT_PATTERN.test(candidate)) {
+                      setAmountOwed(candidate)
+                      setClientError(null)
+                    }
+                  }}
+                />
+                <p id="reimbursement-amount-owed-help" className="text-xs text-muted-foreground">
+                  {transactionText(locale, 'amountOwedHelp')}
+                </p>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="reimbursement-note">{transactionText(locale, 'reimbursementNote')}</Label>
+                <Textarea
+                  id="reimbursement-note"
+                  className="min-h-20 resize-y"
+                  value={claimNote}
+                  maxLength={500}
+                  onChange={(event) => setClaimNote(event.target.value)}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {(clientError || currentServerError) && (
         <Alert variant="destructive">
-          <AlertDescription>{clientError ?? serverError}</AlertDescription>
+          <AlertDescription>{clientError ?? currentServerError}</AlertDescription>
         </Alert>
       )}
-      {categoriesError && !clientError && !serverError && (
+      {categoriesError && !clientError && !currentServerError && (
         <Alert variant="destructive">
           <AlertDescription>{transactionText(locale, 'categoriesLoadFailed')}</AlertDescription>
         </Alert>
@@ -266,8 +524,8 @@ export function TransactionForm({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>{transactionText(locale, 'cancel')}</Button>
-        <Button type="submit" disabled={isSubmitting || categoriesPending || categoriesError}>
-          {isSubmitting ? transactionText(locale, 'saving') : submitLabel}
+        <Button type="submit" disabled={currentlySubmitting || categoriesPending || categoriesError}>
+          {currentlySubmitting ? transactionText(locale, 'saving') : submitLabel}
         </Button>
       </div>
     </form>

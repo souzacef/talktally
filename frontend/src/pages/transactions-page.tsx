@@ -19,6 +19,8 @@ import {
   categoryLabelForId,
 } from '@/features/categories/category-presentation'
 import { useCategories } from '@/features/categories/hooks/use-categories'
+import { peopleApi } from '@/features/reimbursements/api/people-api'
+import { reimbursementApi } from '@/features/reimbursements/api/reimbursement-api'
 import { transactionApi } from '@/features/transactions/api/transaction-api'
 import { TransactionForm } from '@/features/transactions/components/transaction-form'
 import {
@@ -30,6 +32,8 @@ import { ApiError } from '@/lib/api/api-client'
 import { financialAmountStyle } from '@/lib/money/financial-display'
 import { queryKeys } from '@/lib/query/query-client'
 import type {
+  CreateReimbursementRequest,
+  PersonResponse,
   TransactionKind,
   TransactionListParams,
   TransactionRequest,
@@ -58,6 +62,11 @@ export function TransactionsPage() {
     queryKey: queryKeys.transactions.list(params),
     queryFn: ({ signal }) => transactionApi.list(params, signal),
   })
+  const people = useQuery({
+    queryKey: queryKeys.people.all,
+    queryFn: ({ signal }) => peopleApi.list(signal),
+    enabled: showCreate,
+  })
 
   function mutationErrorMessage(error: Error | null, action: 'create' | 'edit'): string | undefined {
     if (!error) return undefined
@@ -68,9 +77,31 @@ export function TransactionsPage() {
     return transactionText(locale, action === 'create' ? 'createFailed' : 'updateFailed')
   }
 
+  function reimbursementErrorMessage(error: Error | null): string | undefined {
+    return error ? transactionText(locale, 'reimbursementCreateFailed') : undefined
+  }
+
+  function personErrorMessage(error: Error | null): string | undefined {
+    if (!error) return undefined
+    if (error instanceof ApiError
+      && (error.status === 409 || error.code === 'PERSON_ALREADY_EXISTS')) {
+      return transactionText(locale, 'personAlreadyExists')
+    }
+    return transactionText(locale, 'personCreateFailed')
+  }
+
   async function invalidateFinancialQueries() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+    ])
+  }
+
+  async function invalidateReimbursementQueries() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.reimbursements.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all }),
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
     ])
   }
@@ -81,6 +112,26 @@ export function TransactionsPage() {
       setShowCreate(false)
       setFeedback(transactionText(locale, 'created'))
       await invalidateFinancialQueries()
+    },
+  })
+
+  const reimbursementMutation = useMutation({
+    mutationFn: (request: CreateReimbursementRequest) => reimbursementApi.create(request),
+    onSuccess: async () => {
+      setShowCreate(false)
+      setFeedback(transactionText(locale, 'reimbursableCreated'))
+      await invalidateReimbursementQueries()
+    },
+  })
+
+  const personMutation = useMutation({
+    mutationFn: (displayName: string) => peopleApi.create({ displayName }),
+    onSuccess: async (created) => {
+      queryClient.setQueryData<PersonResponse[]>(queryKeys.people.all, (current) => {
+        if (current?.some((person) => person.id === created.id)) return current
+        return [...(current ?? []), created]
+      })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
     },
   })
 
@@ -120,6 +171,8 @@ export function TransactionsPage() {
     setEditingId(null)
     updateMutation.reset()
     createMutation.reset()
+    reimbursementMutation.reset()
+    personMutation.reset()
     setFeedback(null)
     setShowCreate(true)
   }
@@ -151,12 +204,35 @@ export function TransactionsPage() {
               categories={categories.data ?? []}
               categoriesPending={categories.isPending}
               categoriesError={categories.isError}
+              reimbursementCreation={{
+                people: people.data ?? [],
+                peoplePending: people.isPending,
+                peopleError: people.isError,
+                isSubmitting: reimbursementMutation.isPending,
+                serverError: reimbursementErrorMessage(reimbursementMutation.error),
+                personCreationPending: personMutation.isPending,
+                personCreationError: personErrorMessage(personMutation.error),
+                onCreatePerson: (displayName) => personMutation.mutateAsync(displayName),
+                onSubmit: (request) => {
+                  createMutation.reset()
+                  reimbursementMutation.mutate(request)
+                },
+                onResetErrors: () => {
+                  reimbursementMutation.reset()
+                  personMutation.reset()
+                },
+              }}
               isSubmitting={createMutation.isPending}
               serverError={mutationErrorMessage(createMutation.error, 'create')}
               submitLabel={transactionText(locale, 'createTransaction')}
-              onSubmit={(request) => createMutation.mutate(request)}
+              onSubmit={(request) => {
+                reimbursementMutation.reset()
+                createMutation.mutate(request)
+              }}
               onCancel={() => {
                 createMutation.reset()
+                reimbursementMutation.reset()
+                personMutation.reset()
                 setShowCreate(false)
               }}
             />

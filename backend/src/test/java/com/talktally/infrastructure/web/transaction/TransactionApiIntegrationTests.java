@@ -118,7 +118,8 @@ class TransactionApiIntegrationTests {
 				.andExpect(status().isCreated())
 				.andExpect(header().string("Location", startsWith("/api/v1/transactions/")))
 				.andExpect(jsonPath("$.description").value("First purchase"))
-				.andExpect(jsonPath("$.source").value("MANUAL"));
+				.andExpect(jsonPath("$.source").value("MANUAL"))
+				.andExpect(jsonPath("$.managedByReimbursement").value(false));
 	}
 
 	@Test
@@ -167,6 +168,7 @@ class TransactionApiIntegrationTests {
 				.andExpect(jsonPath("$.firstOccurrenceDate").value(EVENT_DATE.toString()))
 				.andExpect(jsonPath("$.source").value("MANUAL"))
 				.andExpect(jsonPath("$.installmentCount").value(1))
+				.andExpect(jsonPath("$.managedByReimbursement").value(false))
 				.andExpect(jsonPath("$.ownerId").doesNotExist())
 				.andExpect(jsonPath("$.userId").doesNotExist());
 

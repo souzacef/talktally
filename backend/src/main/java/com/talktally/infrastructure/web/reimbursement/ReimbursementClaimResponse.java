@@ -10,6 +10,7 @@ import java.util.UUID;
 public record ReimbursementClaimResponse(
 		UUID id,
 		UUID expenseTransactionId,
+		ReimbursementSourceExpenseResponse sourceExpense,
 		UUID personId,
 		String personDisplayName,
 		BigDecimal originalAmount,
@@ -28,6 +29,7 @@ public record ReimbursementClaimResponse(
 		return new ReimbursementClaimResponse(
 				output.claimId().value(),
 				output.expenseTransactionId().value(),
+				ReimbursementSourceExpenseResponse.from(output.sourceExpense()),
 				output.personId().value(),
 				output.personDisplayName(),
 				output.originalAmount(),

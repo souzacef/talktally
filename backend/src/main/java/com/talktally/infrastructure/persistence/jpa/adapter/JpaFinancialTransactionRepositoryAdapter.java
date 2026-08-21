@@ -26,11 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -126,6 +128,13 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 	@Override
 	public boolean isLinkedToReimbursement(UserId ownerId, TransactionId transactionId) {
 		return reimbursementClaimRepository.isTransactionLinked(ownerId, transactionId);
+	}
+
+	@Override
+	public Set<TransactionId> findReimbursementManagedTransactionIds(
+			UserId ownerId,
+			Collection<TransactionId> transactionIds) {
+		return reimbursementClaimRepository.findLinkedTransactionIds(ownerId, transactionIds);
 	}
 
 	private static FinancialTransactionJpaEntity update(

@@ -122,6 +122,7 @@ export function TransactionDetailPage() {
   const transaction = detailQuery.data
   const amount = financialAmountStyle(transaction.kind)
   const isReceipt = transaction.kind === 'REIMBURSEMENT_RECEIPT'
+  const managedByReimbursement = transaction.managedByReimbursement
   const categoryName = categories.isPending ? transactionText(locale, 'loadingCategory') : categoryLabelForId(categories.data, transaction.categoryId, locale)
 
   return (
@@ -151,14 +152,14 @@ export function TransactionDetailPage() {
 
       {categories.isError && <p className="text-sm text-muted-foreground" role="status">{transactionText(locale, 'categoryDetailsUnavailable')}</p>}
 
-      {isReceipt && (
+      {managedByReimbursement && (
         <Alert className="border-reimbursement/25 bg-reimbursement-soft/50">
           <AlertDescription>
-            {transactionText(locale, 'receiptManagedPrefix')}
+            {transactionText(locale, isReceipt ? 'receiptManagedPrefix' : 'sourceExpenseManagedPrefix')}
             <Link to="/owed" className="font-semibold text-primary underline-offset-4 hover:underline">
               {transactionText(locale, 'receiptManagedLink')}
             </Link>
-            {transactionText(locale, 'receiptManagedSuffix')}
+            {transactionText(locale, isReceipt ? 'receiptManagedSuffix' : 'sourceExpenseManagedSuffix')}
           </AlertDescription>
         </Alert>
       )}
@@ -197,7 +198,7 @@ export function TransactionDetailPage() {
           </CardContent>
         </Card>
 
-        {!isReceipt && (
+        {!managedByReimbursement && (
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">{transactionText(locale, 'actions')}</CardTitle>
@@ -235,7 +236,7 @@ export function TransactionDetailPage() {
         )}
       </div>
 
-      {editing && !isReceipt && (
+      {editing && !managedByReimbursement && (
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">{transactionText(locale, 'editTransaction')}</CardTitle>

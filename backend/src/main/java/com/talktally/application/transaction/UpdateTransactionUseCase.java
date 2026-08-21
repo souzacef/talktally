@@ -58,6 +58,8 @@ public class UpdateTransactionUseCase {
 				input.installmentCount());
 		FinancialTransaction replacement = TransactionAggregateFactory.replace(existing, validated);
 
-		return TransactionOutputMapper.toOutput(transactionRepository.save(replacement));
+		return TransactionOutputMapper.toOutput(
+				transactionRepository.save(replacement),
+				false);
 	}
 }

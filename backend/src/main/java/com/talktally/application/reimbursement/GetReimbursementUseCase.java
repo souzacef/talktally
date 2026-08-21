@@ -1,10 +1,7 @@
 package com.talktally.application.reimbursement;
 
-import com.talktally.application.person.exception.PersonNotFoundException;
 import com.talktally.application.reimbursement.exception.ReimbursementClaimNotFoundException;
 import com.talktally.application.reimbursement.output.ReimbursementClaimOutput;
-import com.talktally.domain.Person;
-import com.talktally.domain.PersonRepository;
 import com.talktally.domain.ReimbursementClaim;
 import com.talktally.domain.ReimbursementClaimId;
 import com.talktally.domain.ReimbursementClaimRepository;
@@ -18,15 +15,15 @@ import java.util.Objects;
 public class GetReimbursementUseCase {
 
 	private final ReimbursementClaimRepository claimRepository;
-	private final PersonRepository personRepository;
+	private final ReimbursementClaimOutputAssembler outputAssembler;
 
 	public GetReimbursementUseCase(
 			ReimbursementClaimRepository claimRepository,
-			PersonRepository personRepository) {
+			ReimbursementClaimOutputAssembler outputAssembler) {
 		this.claimRepository = Objects.requireNonNull(
 				claimRepository, "claim repository must not be null");
-		this.personRepository = Objects.requireNonNull(
-				personRepository, "person repository must not be null");
+		this.outputAssembler = Objects.requireNonNull(
+				outputAssembler, "output assembler must not be null");
 	}
 
 	@Transactional(readOnly = true)
@@ -35,8 +32,6 @@ public class GetReimbursementUseCase {
 		Objects.requireNonNull(claimId, "claim id must not be null");
 		ReimbursementClaim claim = claimRepository.findById(actorId, claimId)
 				.orElseThrow(() -> new ReimbursementClaimNotFoundException(claimId));
-		Person person = personRepository.findById(actorId, claim.personId())
-				.orElseThrow(() -> new PersonNotFoundException(claim.personId()));
-		return ReimbursementOutputMapper.toOutput(claim, person);
+		return outputAssembler.assemble(actorId, claim);
 	}
 }

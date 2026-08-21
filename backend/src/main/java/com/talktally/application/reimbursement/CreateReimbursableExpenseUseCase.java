@@ -28,17 +28,21 @@ public class CreateReimbursableExpenseUseCase {
 	private final PersonRepository personRepository;
 	private final ReimbursementClaimRepository claimRepository;
 	private final CreateTransactionUseCase createTransactionUseCase;
+	private final ReimbursementClaimOutputAssembler outputAssembler;
 
 	public CreateReimbursableExpenseUseCase(
 			PersonRepository personRepository,
 			ReimbursementClaimRepository claimRepository,
-			CreateTransactionUseCase createTransactionUseCase) {
+			CreateTransactionUseCase createTransactionUseCase,
+			ReimbursementClaimOutputAssembler outputAssembler) {
 		this.personRepository = Objects.requireNonNull(
 				personRepository, "person repository must not be null");
 		this.claimRepository = Objects.requireNonNull(
 				claimRepository, "claim repository must not be null");
 		this.createTransactionUseCase = Objects.requireNonNull(
 				createTransactionUseCase, "create transaction use case must not be null");
+		this.outputAssembler = Objects.requireNonNull(
+				outputAssembler, "output assembler must not be null");
 	}
 
 	@Transactional
@@ -85,8 +89,10 @@ public class CreateReimbursableExpenseUseCase {
 			throw new InvalidReimbursementInputException(exception.getMessage(), exception);
 		}
 		ReimbursementClaim saved = claimRepository.save(claim);
-		ReimbursementClaimOutput claimOutput = ReimbursementOutputMapper.toOutput(saved, person);
-		return new CreateReimbursableExpenseOutput(expense, claimOutput);
+		ReimbursementClaimOutput claimOutput = outputAssembler.assemble(actorId, saved, person);
+		return new CreateReimbursableExpenseOutput(
+				expense.withManagedByReimbursement(true),
+				claimOutput);
 	}
 
 	private static Money positiveBrl(BigDecimal amount, String field) {

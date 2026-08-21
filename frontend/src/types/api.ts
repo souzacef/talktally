@@ -85,6 +85,7 @@ export interface TransactionResponse {
   firstOccurrenceDate: IsoDate
   source: TransactionSource
   installmentCount: number
+  managedByReimbursement: boolean
   occurrences: TransactionOccurrenceResponse[]
 }
 
@@ -152,9 +153,21 @@ export interface ReimbursementPaymentResponse {
   note: string | null
 }
 
+export interface ReimbursementSourceExpenseResponse {
+  transactionId: UUID
+  description: string
+  amount: DecimalValue
+  currency: 'BRL'
+  categoryId: UUID
+  eventDate: IsoDate
+  firstOccurrenceDate: IsoDate
+  installmentCount: number
+}
+
 export interface ReimbursementClaimResponse {
   id: UUID
   expenseTransactionId: UUID
+  sourceExpense: ReimbursementSourceExpenseResponse
   personId: UUID
   personDisplayName: string
   originalAmount: DecimalValue

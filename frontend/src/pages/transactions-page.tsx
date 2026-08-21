@@ -219,7 +219,7 @@ export function TransactionsPage() {
           <ul className="divide-y">
             {query.data?.items.map((transaction) => {
               const amount = financialAmountStyle(transaction.kind)
-              const protectedReceipt = transaction.kind === 'REIMBURSEMENT_RECEIPT'
+              const managedByReimbursement = transaction.managedByReimbursement
               const categoryName = categories.isPending ? transactionText(locale, 'loadingCategory') : categoryLabelForId(categories.data, transaction.categoryId, locale)
               return (
                 <li key={transaction.id} className="py-4 first:pt-0 last:pb-0">
@@ -230,7 +230,7 @@ export function TransactionsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="min-w-0 truncate font-semibold">{transaction.description}</p>
                         <span className="hidden sm:inline-flex"><KindBadge kind={transaction.kind} label={transactionKindLabel(transaction.kind, locale)} /></span>
-                        {protectedReceipt && <ProtectedBadge label={transactionText(locale, 'protected')} />}
+                        {managedByReimbursement && <ProtectedBadge label={transactionText(locale, 'protected')} />}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span>{formatDate(transaction.eventDate)}</span>
@@ -241,7 +241,7 @@ export function TransactionsPage() {
                     </div>
                     <div className="pointer-events-none flex shrink-0 flex-col items-end gap-2">
                       <span className={`tabular-nums font-heading text-base font-semibold sm:text-lg ${amount.className}`}>{amount.prefix}{formatMoney(transaction.amount)}</span>
-                      {!protectedReceipt && (
+                      {!managedByReimbursement && (
                         <Button type="button" size="sm" variant="ghost" className="pointer-events-auto relative z-10" onClick={(event) => {
                           event.stopPropagation()
                           setShowCreate(false)
@@ -255,7 +255,7 @@ export function TransactionsPage() {
                       )}
                     </div>
                   </div>
-                  {editingId === transaction.id && !protectedReceipt && (
+                  {editingId === transaction.id && !managedByReimbursement && (
                     <div className="mt-4 rounded-2xl border bg-muted/25 p-4">
                       <h2 className="mb-4 font-heading text-lg font-semibold">{transactionText(locale, 'editTransaction')}</h2>
                       <TransactionForm key={`edit-${transaction.id}`} categories={categories.data ?? []} categoriesPending={categories.isPending} categoriesError={categories.isError} initialTransaction={transaction} isSubmitting={updateMutation.isPending} serverError={mutationErrorMessage(updateMutation.error, 'edit')} submitLabel={transactionText(locale, 'saveChanges')} onSubmit={(request) => updateMutation.mutate({ id: transaction.id, request })} onCancel={() => { updateMutation.reset(); setEditingId(null) }} />

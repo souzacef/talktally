@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -85,7 +86,8 @@ class ReimbursementApiIntegrationTests {
 								""".formatted(SALARY)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.kind").value("INCOME"))
-				.andExpect(jsonPath("$.amount").value(1000.0));
+				.andExpect(jsonPath("$.amount").value(1000.0))
+				.andExpect(jsonPath("$.managedByReimbursement").value(false));
 
 		MvcResult created = mockMvc.perform(post("/api/v1/reimbursements")
 						.header("Authorization", bearer(token))
@@ -96,6 +98,7 @@ class ReimbursementApiIntegrationTests {
 				.andExpect(header().string("Location", startsWith("/api/v1/reimbursements/")))
 				.andExpect(jsonPath("$.expense.kind").value("EXPENSE"))
 				.andExpect(jsonPath("$.expense.amount").value(174.0))
+				.andExpect(jsonPath("$.expense.managedByReimbursement").value(true))
 				.andExpect(jsonPath("$.expense.source").value("MANUAL"))
 				.andExpect(jsonPath("$.expense.firstOccurrenceDate").value("2026-08-14"))
 				.andExpect(jsonPath("$.expense.occurrences", hasSize(3)))
@@ -103,6 +106,8 @@ class ReimbursementApiIntegrationTests {
 				.andExpect(jsonPath("$.expense.occurrences[1].amount").value(58.0))
 				.andExpect(jsonPath("$.expense.occurrences[2].amount").value(58.0))
 				.andExpect(jsonPath("$.claim.originalAmount").value(174.0))
+				.andExpect(jsonPath("$.claim.sourceExpense.amount").value(174.0))
+				.andExpect(jsonPath("$.claim.sourceExpense.installmentCount").value(3))
 				.andExpect(jsonPath("$.claim.amountReimbursed").value(0.0))
 				.andExpect(jsonPath("$.claim.remainingAmount").value(174.0))
 				.andExpect(jsonPath("$.claim.status").value("PENDING"))
@@ -129,7 +134,8 @@ class ReimbursementApiIntegrationTests {
 				.andExpect(jsonPath("$.eventDate").value("2026-08-20"))
 				.andExpect(jsonPath("$.firstOccurrenceDate").value("2026-08-20"))
 				.andExpect(jsonPath("$.occurrences[0].effectiveDate").value("2026-08-20"))
-				.andExpect(jsonPath("$.source").value("MANUAL"));
+				.andExpect(jsonPath("$.source").value("MANUAL"))
+				.andExpect(jsonPath("$.managedByReimbursement").value(true));
 
 		recordPayment(token, claimId, "124.00", "2026-08-24")
 				.andExpect(status().isCreated())
@@ -174,6 +180,115 @@ class ReimbursementApiIntegrationTests {
 				.andExpect(jsonPath("$.expense.occurrences[0].effectiveDate").value("2026-09-10"))
 				.andExpect(jsonPath("$.expense.occurrences[1].effectiveDate").value("2026-10-10"))
 				.andExpect(jsonPath("$.expense.occurrences[2].effectiveDate").value("2026-11-10"));
+	}
+
+	@Test
+	void claimResponsesExposeOwnerScopedSourceExpenseWithoutChangingOriginallyOwed()
+			throws Exception {
+		UUID personId = createPerson(tokenA, "Rose");
+		MvcResult created = mockMvc.perform(post("/api/v1/reimbursements")
+						.header("Authorization", bearer(tokenA))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(reimbursementJson(
+								"Dinner at Outback",
+								"200.00",
+								GROCERIES,
+								personId,
+								"100.00",
+								"2026-09-10",
+								3)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.expense.managedByReimbursement").value(true))
+				.andExpect(jsonPath("$.claim.personDisplayName").value("Rose"))
+				.andExpect(jsonPath("$.claim.originalAmount").value(100.0))
+				.andExpect(jsonPath("$.claim.sourceExpense.description")
+						.value("Dinner at Outback"))
+				.andExpect(jsonPath("$.claim.sourceExpense.amount").value(200.0))
+				.andExpect(jsonPath("$.claim.sourceExpense.currency").value("BRL"))
+				.andExpect(jsonPath("$.claim.sourceExpense.categoryId")
+						.value(GROCERIES.toString()))
+				.andExpect(jsonPath("$.claim.sourceExpense.eventDate").value("2026-08-14"))
+				.andExpect(jsonPath("$.claim.sourceExpense.firstOccurrenceDate")
+						.value("2026-09-10"))
+				.andExpect(jsonPath("$.claim.sourceExpense.installmentCount").value(3))
+				.andReturn();
+		String body = created.getResponse().getContentAsString();
+		UUID claimId = UUID.fromString(JsonPath.read(body, "$.claim.id"));
+		UUID expenseId = UUID.fromString(JsonPath.read(body, "$.expense.id"));
+		org.junit.jupiter.api.Assertions.assertEquals(
+				expenseId.toString(),
+				JsonPath.read(body, "$.claim.sourceExpense.transactionId"));
+
+		mockMvc.perform(get("/api/v1/transactions/{id}", expenseId)
+						.header("Authorization", bearer(tokenA)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.managedByReimbursement").value(true));
+
+		mockMvc.perform(get("/api/v1/reimbursements/{id}", claimId)
+						.header("Authorization", bearer(tokenA)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.originalAmount").value(100.0))
+				.andExpect(jsonPath("$.sourceExpense.transactionId")
+						.value(expenseId.toString()))
+				.andExpect(jsonPath("$.sourceExpense.amount").value(200.0));
+
+		mockMvc.perform(get("/api/v1/reimbursements")
+						.param("personId", personId.toString())
+						.header("Authorization", bearer(tokenA)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items", hasSize(1)))
+				.andExpect(jsonPath("$.items[0].originalAmount").value(100.0))
+				.andExpect(jsonPath("$.items[0].sourceExpense.description")
+						.value("Dinner at Outback"))
+				.andExpect(jsonPath("$.items[0].sourceExpense.amount").value(200.0));
+
+		MvcResult payment = recordPayment(tokenA, claimId, "40.00", "2026-08-20")
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.claim.originalAmount").value(100.0))
+				.andExpect(jsonPath("$.claim.amountReimbursed").value(40.0))
+				.andExpect(jsonPath("$.claim.remainingAmount").value(60.0))
+				.andExpect(jsonPath("$.claim.sourceExpense.transactionId")
+						.value(expenseId.toString()))
+				.andExpect(jsonPath("$.claim.sourceExpense.amount").value(200.0))
+				.andReturn();
+		UUID receiptId = UUID.fromString(JsonPath.read(
+				payment.getResponse().getContentAsString(), "$.receiptTransactionId"));
+		MvcResult ordinary = mockMvc.perform(post("/api/v1/transactions")
+						.header("Authorization", bearer(tokenA))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "kind": "INCOME",
+								  "description": "Ordinary income",
+								  "amount": 50.00,
+								  "categoryId": "%s",
+								  "eventDate": "2026-08-20",
+								  "installmentCount": 1
+								}
+								""".formatted(SALARY)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.managedByReimbursement").value(false))
+				.andReturn();
+		UUID ordinaryId = UUID.fromString(JsonPath.read(
+				ordinary.getResponse().getContentAsString(), "$.id"));
+
+		mockMvc.perform(get("/api/v1/transactions")
+						.header("Authorization", bearer(tokenA)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.items[?(@.id == '" + expenseId
+								+ "')].managedByReimbursement").value(contains(true)))
+				.andExpect(jsonPath(
+						"$.items[?(@.id == '" + receiptId
+								+ "')].managedByReimbursement").value(contains(true)))
+				.andExpect(jsonPath(
+						"$.items[?(@.id == '" + ordinaryId
+								+ "')].managedByReimbursement").value(contains(false)));
+
+		mockMvc.perform(get("/api/v1/reimbursements/{id}", claimId)
+						.header("Authorization", bearer(tokenB)))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("REIMBURSEMENT_NOT_FOUND"));
 	}
 
 	@Test

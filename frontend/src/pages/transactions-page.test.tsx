@@ -46,6 +46,7 @@ const expense: TransactionResponse = {
   firstOccurrenceDate: '2026-08-19',
   source: 'MANUAL',
   installmentCount: 1,
+  managedByReimbursement: false,
   occurrences: [
     { sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '12.34', currency: 'BRL' },
   ],
@@ -62,6 +63,7 @@ const reimbursement: TransactionResponse = {
   firstOccurrenceDate: '2026-08-19',
   source: 'VOICE',
   installmentCount: 3,
+  managedByReimbursement: true,
   occurrences: [
     { sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '20.00', currency: 'BRL' },
     { sequenceNumber: 2, effectiveDate: '2026-09-19', amount: '20.00', currency: 'BRL' },
@@ -125,6 +127,18 @@ describe('TransactionsPage category catalog integration', () => {
     expect(within(reimbursementRow!).queryByText('Income')).not.toBeInTheDocument()
     expect(within(reimbursementRow!).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('Category food-id')
+  })
+
+  it('hides ordinary edit for a source expense managed by reimbursement', async () => {
+    mocks.transactionList.mockResolvedValue(page([
+      { ...expense, id: 'managed-expense', description: 'Dinner at Outback', managedByReimbursement: true },
+    ]))
+    renderPage()
+
+    const managedRow = (await screen.findByText('Dinner at Outback')).closest('li')
+    expect(managedRow).not.toBeNull()
+    expect(within(managedRow!).getByText('Protected')).toBeInTheDocument()
+    expect(within(managedRow!).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
   })
 
   it('renders transaction labels, categories, dates, and BRL amounts in pt-BR', async () => {

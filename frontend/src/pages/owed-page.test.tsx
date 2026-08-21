@@ -7,6 +7,7 @@ import { OwedPage } from '@/pages/owed-page'
 
 const mocks = vi.hoisted(() => ({
   summary: vi.fn(),
+  categoryList: vi.fn(),
   peopleList: vi.fn(),
   personSummary: vi.fn(),
   reimbursementList: vi.fn(),
@@ -15,6 +16,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/features/dashboard/hooks/use-dashboard', () => ({
   useFinancialSummary: mocks.summary,
+}))
+vi.mock('@/features/categories/api/category-api', () => ({
+  categoryApi: { list: mocks.categoryList },
 }))
 vi.mock('@/features/reimbursements/api/people-api', () => ({
   peopleApi: {
@@ -54,6 +58,9 @@ describe('OwedPage localization', () => {
         owedToMe: { outstanding: '80.50', openClaims: 1 },
       },
     })
+    mocks.categoryList.mockResolvedValue([
+      { id: 'food-id', code: 'FOOD_DINING', displayName: 'Food and dining', allowedKind: 'EXPENSE', builtIn: true },
+    ])
     mocks.peopleList.mockResolvedValue([{ id: 'ana-id', displayName: 'Ana Silva' }])
     mocks.personSummary.mockResolvedValue({
       personId: 'ana-id',
@@ -68,6 +75,16 @@ describe('OwedPage localization', () => {
       items: [{
         id: 'claim-id',
         expenseTransactionId: 'expense-id',
+        sourceExpense: {
+          transactionId: 'expense-id',
+          description: 'Dinner at Outback',
+          amount: '200.00',
+          currency: 'BRL',
+          categoryId: 'food-id',
+          eventDate: '2026-08-14',
+          firstOccurrenceDate: '2026-09-10',
+          installmentCount: 3,
+        },
         personId: 'ana-id',
         personDisplayName: 'Ana Silva',
         originalAmount: '100.00',
@@ -93,6 +110,22 @@ describe('OwedPage localization', () => {
     mocks.recordPayment.mockResolvedValue({})
   })
 
+  it('distinguishes the authoritative source expense from the amount originally owed', async () => {
+    renderOwed()
+
+    const claim = (await screen.findByText('Reimbursement claim')).closest('article')
+    expect(claim).not.toBeNull()
+    expect(within(claim!).getByRole('heading', { name: 'Dinner at Outback' })).toBeInTheDocument()
+    expect(within(claim!).getByText(/Food and dining · 08\/14\/2026 · 3 installments/)).toBeInTheDocument()
+    expect(within(claim!).getByText('First cash-flow date: 09/10/2026')).toBeInTheDocument()
+    const sourceLabels = within(claim!).getAllByText('Source expense')
+    expect(sourceLabels).toHaveLength(2)
+    expect(sourceLabels[1]?.parentElement).toHaveTextContent(/R\$\s*200\.00/)
+    const owedLabel = within(claim!).getByText('Originally owed')
+    expect(owedLabel.parentElement).toHaveTextContent(/R\$\s*100\.00/)
+    expect(within(claim!).getByText(/08\/19\/2026 · Pix/)).toBeInTheDocument()
+  })
+
   it('renders pt-BR copy, status, money, and payment dates', async () => {
     renderOwed('pt-BR')
 
@@ -101,6 +134,11 @@ describe('OwedPage localization', () => {
     const claim = (await screen.findByText('Cobrança de reembolso')).closest('article')
     expect(claim).not.toBeNull()
     expect(within(claim!).getByText('Parcialmente pago')).toBeInTheDocument()
+    expect(within(claim!).getByRole('heading', { name: 'Dinner at Outback' })).toBeInTheDocument()
+    expect(within(claim!).getByText(/Alimentação · 14\/08\/2026 · 3 parcelas/)).toBeInTheDocument()
+    expect(within(claim!).getByText('Primeiro fluxo de caixa: 10/09/2026')).toBeInTheDocument()
+    expect(within(claim!).getByText('Valor originalmente devido')).toBeInTheDocument()
+    expect(within(claim!).queryByText('Valor original')).not.toBeInTheDocument()
     expect(within(claim!).getByText(/19\/08\/2026 · Pix/)).toBeInTheDocument()
   })
 

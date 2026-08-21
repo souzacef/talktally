@@ -19,10 +19,13 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Currency;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -144,6 +147,32 @@ public class JpaReimbursementClaimRepositoryAdapter implements ReimbursementClai
 		UUID transaction = transactionId.value();
 		return claimRepository.existsByUserIdAndExpenseTransactionId(owner, transaction)
 				|| paymentRepository.existsByUserIdAndReceiptTransactionId(owner, transaction);
+	}
+
+	@Override
+	public Set<TransactionId> findLinkedTransactionIds(
+			UserId ownerId,
+			Collection<TransactionId> transactionIds) {
+		Objects.requireNonNull(ownerId, "owner id must not be null");
+		Objects.requireNonNull(transactionIds, "transaction ids must not be null");
+		Set<UUID> ids = new LinkedHashSet<>();
+		for (TransactionId transactionId : transactionIds) {
+			ids.add(Objects.requireNonNull(
+					transactionId, "transaction id must not be null").value());
+		}
+		if (ids.isEmpty()) {
+			return Set.of();
+		}
+		Set<TransactionId> linked = new LinkedHashSet<>();
+		claimRepository.findLinkedExpenseTransactionIds(ownerId.value(), ids)
+				.stream()
+				.map(TransactionId::from)
+				.forEach(linked::add);
+		paymentRepository.findLinkedReceiptTransactionIds(ownerId.value(), ids)
+				.stream()
+				.map(TransactionId::from)
+				.forEach(linked::add);
+		return Set.copyOf(linked);
 	}
 
 	private ReimbursementClaim toDomain(ReimbursementClaimJpaEntity entity) {

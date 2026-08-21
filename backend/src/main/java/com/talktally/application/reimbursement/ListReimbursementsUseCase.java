@@ -21,14 +21,18 @@ public class ListReimbursementsUseCase {
 
 	private final ReimbursementClaimRepository claimRepository;
 	private final PersonRepository personRepository;
+	private final ReimbursementClaimOutputAssembler outputAssembler;
 
 	public ListReimbursementsUseCase(
 			ReimbursementClaimRepository claimRepository,
-			PersonRepository personRepository) {
+			PersonRepository personRepository,
+			ReimbursementClaimOutputAssembler outputAssembler) {
 		this.claimRepository = Objects.requireNonNull(
 				claimRepository, "claim repository must not be null");
 		this.personRepository = Objects.requireNonNull(
 				personRepository, "person repository must not be null");
+		this.outputAssembler = Objects.requireNonNull(
+				outputAssembler, "output assembler must not be null");
 	}
 
 	@Transactional(readOnly = true)
@@ -56,10 +60,7 @@ public class ListReimbursementsUseCase {
 						input.size()));
 		return new ReimbursementPageOutput(
 				page.content().stream()
-						.map(claim -> ReimbursementOutputMapper.toOutput(
-								claim,
-								personRepository.findById(actorId, claim.personId())
-										.orElseThrow(() -> new PersonNotFoundException(claim.personId()))))
+						.map(claim -> outputAssembler.assemble(actorId, claim))
 						.toList(),
 				page.page(),
 				page.size(),

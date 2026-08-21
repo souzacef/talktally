@@ -21,6 +21,7 @@ public record TransactionOutput(
 		LocalDate firstOccurrenceDate,
 		TransactionSource source,
 		int installmentCount,
+		boolean managedByReimbursement,
 		List<TransactionOccurrenceOutput> occurrences) {
 
 	public TransactionOutput {
@@ -38,5 +39,21 @@ public record TransactionOutput(
 		if (installmentCount != occurrences.size()) {
 			throw new IllegalArgumentException("installment count must match occurrences");
 		}
+	}
+
+	public TransactionOutput withManagedByReimbursement(boolean managed) {
+		return new TransactionOutput(
+				transactionId,
+				kind,
+				description,
+				amount,
+				currency,
+				categoryId,
+				eventDate,
+				firstOccurrenceDate,
+				source,
+				installmentCount,
+				managed,
+				occurrences);
 	}
 }

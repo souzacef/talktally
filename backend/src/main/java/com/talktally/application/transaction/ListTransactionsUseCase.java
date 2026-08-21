@@ -7,12 +7,14 @@ import com.talktally.domain.CategoryCatalog;
 import com.talktally.domain.FinancialTransactionPage;
 import com.talktally.domain.FinancialTransactionRepository;
 import com.talktally.domain.FinancialTransactionSearchCriteria;
+import com.talktally.domain.TransactionId;
 import com.talktally.domain.UserId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class ListTransactionsUseCase {
@@ -61,9 +63,19 @@ public class ListTransactionsUseCase {
 				input.page(),
 				input.size());
 		FinancialTransactionPage result = transactionRepository.search(actorId, criteria);
+		Set<TransactionId> managedTransactionIds =
+				transactionRepository.findReimbursementManagedTransactionIds(
+						actorId,
+						result.content().stream()
+								.map(transaction -> transaction.id())
+								.toList());
 
 		return new TransactionPageOutput(
-				result.content().stream().map(TransactionOutputMapper::toOutput).toList(),
+				result.content().stream()
+						.map(transaction -> TransactionOutputMapper.toOutput(
+								transaction,
+								managedTransactionIds.contains(transaction.id())))
+						.toList(),
 				result.page(),
 				result.size(),
 				result.totalElements(),

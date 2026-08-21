@@ -50,6 +50,8 @@ public class CreateTransactionUseCase {
 		FinancialTransaction transaction = TransactionAggregateFactory.create(
 				actorId, source, validated);
 
-		return TransactionOutputMapper.toOutput(transactionRepository.save(transaction));
+		return TransactionOutputMapper.toOutput(
+				transactionRepository.save(transaction),
+				false);
 	}
 }

@@ -20,6 +20,7 @@ public record TransactionResponse(
 		LocalDate firstOccurrenceDate,
 		TransactionSource source,
 		int installmentCount,
+		boolean managedByReimbursement,
 		List<TransactionOccurrenceResponse> occurrences) {
 
 	public TransactionResponse {
@@ -38,6 +39,7 @@ public record TransactionResponse(
 				output.firstOccurrenceDate(),
 				output.source(),
 				output.installmentCount(),
+				output.managedByReimbursement(),
 				output.occurrences().stream()
 						.map(TransactionOccurrenceResponse::from)
 						.toList());

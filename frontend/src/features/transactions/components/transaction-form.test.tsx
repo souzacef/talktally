@@ -23,6 +23,7 @@ const existingTransaction: TransactionResponse = {
   firstOccurrenceDate: '2026-09-10',
   source: 'MANUAL',
   installmentCount: 3,
+  managedByReimbursement: false,
   occurrences: [
     { sequenceNumber: 1, effectiveDate: '2026-09-10', amount: '33.33', currency: 'BRL' },
     { sequenceNumber: 2, effectiveDate: '2026-10-10', amount: '33.33', currency: 'BRL' },

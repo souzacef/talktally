@@ -34,12 +34,14 @@ public class RecordReimbursementPaymentUseCase {
 	private final PersonRepository personRepository;
 	private final FinancialTransactionRepository transactionRepository;
 	private final CategoryCatalog categoryCatalog;
+	private final ReimbursementClaimOutputAssembler outputAssembler;
 
 	public RecordReimbursementPaymentUseCase(
 			ReimbursementClaimRepository claimRepository,
 			PersonRepository personRepository,
 			FinancialTransactionRepository transactionRepository,
-			CategoryCatalog categoryCatalog) {
+			CategoryCatalog categoryCatalog,
+			ReimbursementClaimOutputAssembler outputAssembler) {
 		this.claimRepository = Objects.requireNonNull(
 				claimRepository, "claim repository must not be null");
 		this.personRepository = Objects.requireNonNull(
@@ -48,6 +50,8 @@ public class RecordReimbursementPaymentUseCase {
 				transactionRepository, "transaction repository must not be null");
 		this.categoryCatalog = Objects.requireNonNull(
 				categoryCatalog, "category catalog must not be null");
+		this.outputAssembler = Objects.requireNonNull(
+				outputAssembler, "output assembler must not be null");
 	}
 
 	@Transactional
@@ -109,7 +113,7 @@ public class RecordReimbursementPaymentUseCase {
 		return new RecordReimbursementPaymentOutput(
 				payment.id(),
 				receipt.id(),
-				ReimbursementOutputMapper.toOutput(saved, person));
+				outputAssembler.assemble(actorId, saved, person));
 	}
 
 	private static InvalidReimbursementInputException invalid(String message) {

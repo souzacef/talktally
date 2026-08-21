@@ -35,11 +35,13 @@ const categories: Category[] = [
 
 const expense: TransactionResponse = {
   id: 'transaction-42', kind: 'EXPENSE', description: 'Dinner with friends', amount: '30.06', currency: 'BRL', categoryId: 'food-category-id', eventDate: '2026-08-19', firstOccurrenceDate: '2026-08-19', source: 'ASSISTANT_TEXT', installmentCount: 1,
+  managedByReimbursement: false,
   occurrences: [{ sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '30.06', currency: 'BRL' }],
 }
 
 const reimbursement: TransactionResponse = {
   ...expense, id: 'receipt-42', kind: 'REIMBURSEMENT_RECEIPT', description: 'Reimbursement from Ana', amount: '60.00', categoryId: 'reimbursement-category-id', source: 'VOICE',
+  managedByReimbursement: true,
 }
 
 function Destination() {
@@ -153,6 +155,28 @@ describe('TransactionDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Owed to Me' })).toHaveAttribute('href', '/owed')
     expect(screen.queryByRole('button', { name: /edit transaction/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delete transaction/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps a reimbursement source expense read-only using backend metadata', async () => {
+    mocks.get.mockResolvedValue({ ...expense, managedByReimbursement: true })
+    renderDetail()
+
+    expect(await screen.findByText(/linked to a reimbursement claim/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Owed to Me' })).toHaveAttribute('href', '/owed')
+    expect(screen.queryByRole('button', { name: /edit transaction/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /delete transaction/i })).not.toBeInTheDocument()
+  })
+
+  it('does not infer reimbursement management solely from transaction kind', async () => {
+    mocks.get.mockResolvedValue({
+      ...reimbursement,
+      managedByReimbursement: false,
+    })
+    renderDetail('/transactions/receipt-42')
+
+    expect(await screen.findByRole('button', { name: 'Edit transaction' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete transaction' })).toBeInTheDocument()
+    expect(screen.queryByText(/managed through/i)).not.toBeInTheDocument()
   })
 
   it('edits an ordinary transaction and invalidates detail, lists, and dashboard data', async () => {

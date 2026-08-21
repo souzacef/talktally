@@ -9,7 +9,9 @@ final class TransactionOutputMapper {
 	private TransactionOutputMapper() {
 	}
 
-	static TransactionOutput toOutput(FinancialTransaction transaction) {
+	static TransactionOutput toOutput(
+			FinancialTransaction transaction,
+			boolean managedByReimbursement) {
 		return new TransactionOutput(
 				transaction.id(),
 				transaction.kind(),
@@ -21,6 +23,7 @@ final class TransactionOutputMapper {
 				transaction.firstOccurrenceDate(),
 				transaction.source(),
 				transaction.occurrences().size(),
+				managedByReimbursement,
 				transaction.occurrences().stream()
 						.map(occurrence -> new TransactionOccurrenceOutput(
 								occurrence.sequenceNumber(),

@@ -3,6 +3,7 @@ package com.talktally.application.transaction;
 import com.talktally.application.exception.InvalidTransactionInputException;
 import com.talktally.application.exception.TransactionNotFoundException;
 import com.talktally.application.output.TransactionOutput;
+import com.talktally.domain.FinancialTransaction;
 import com.talktally.domain.FinancialTransactionRepository;
 import com.talktally.domain.TransactionId;
 import com.talktally.domain.UserId;
@@ -28,8 +29,10 @@ public class GetTransactionUseCase {
 			throw new InvalidTransactionInputException("transaction id is required");
 		}
 
-		return transactionRepository.findById(actorId, transactionId)
-				.map(TransactionOutputMapper::toOutput)
+		FinancialTransaction transaction = transactionRepository.findById(actorId, transactionId)
 				.orElseThrow(() -> new TransactionNotFoundException(transactionId));
+		return TransactionOutputMapper.toOutput(
+				transaction,
+				transactionRepository.isLinkedToReimbursement(actorId, transactionId));
 	}
 }

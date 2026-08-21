@@ -7,10 +7,12 @@ import com.talktally.domain.TransactionId;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 public record ReimbursementClaimOutput(
 		ReimbursementClaimId claimId,
 		TransactionId expenseTransactionId,
+		ReimbursementSourceExpenseOutput sourceExpense,
 		PersonId personId,
 		String personDisplayName,
 		BigDecimal originalAmount,
@@ -22,6 +24,7 @@ public record ReimbursementClaimOutput(
 		List<ReimbursementPaymentOutput> payments) {
 
 	public ReimbursementClaimOutput {
+		Objects.requireNonNull(sourceExpense, "source expense must not be null");
 		payments = List.copyOf(payments);
 	}
 }

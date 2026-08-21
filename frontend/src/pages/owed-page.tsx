@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { categoryLabelForId } from '@/features/categories/category-presentation'
+import { useCategories } from '@/features/categories/hooks/use-categories'
 import { useFinancialSummary } from '@/features/dashboard/hooks/use-dashboard'
 import { peopleApi } from '@/features/reimbursements/api/people-api'
 import { reimbursementApi } from '@/features/reimbursements/api/reimbursement-api'
@@ -34,6 +36,7 @@ export function OwedPage() {
     params?: Parameters<typeof reimbursementText>[2],
   ) => reimbursementText(locale, key, params)
   const period = currentMonthRange()
+  const categories = useCategories()
   const summary = useFinancialSummary(period.from, period.to)
   const people = useQuery({
     queryKey: queryKeys.people.all,
@@ -151,8 +154,21 @@ export function OwedPage() {
                   <ClaimStatusBadge status={claim.status} label={reimbursementStatusLabel(claim.status, locale)} />
                 </div>
 
-                <div className="mt-5 grid gap-3 rounded-2xl bg-muted/45 p-4 sm:grid-cols-3">
-                  <div><p className="text-xs text-muted-foreground">{text('original')}</p><p className="tabular-nums mt-1 font-heading font-semibold">{formatMoney(claim.originalAmount)}</p></div>
+                <div className="mt-5 rounded-2xl border bg-muted/25 p-4">
+                  <p className="text-xs font-semibold text-muted-foreground">{text('sourceExpense')}</p>
+                  <h3 className="mt-1 font-heading text-lg font-semibold">{claim.sourceExpense.description}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {categories.isPending ? text('loadingCategory') : categoryLabelForId(categories.data, claim.sourceExpense.categoryId, locale)} · {formatDate(claim.sourceExpense.eventDate)}
+                    {claim.sourceExpense.installmentCount > 1 && ` · ${text('installments', { count: claim.sourceExpense.installmentCount })}`}
+                  </p>
+                  {claim.sourceExpense.firstOccurrenceDate !== claim.sourceExpense.eventDate && (
+                    <p className="mt-1 text-xs text-muted-foreground">{text('firstCashFlowDate', { date: formatDate(claim.sourceExpense.firstOccurrenceDate) })}</p>
+                  )}
+                </div>
+
+                <div className="mt-3 grid gap-3 rounded-2xl bg-muted/45 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <div><p className="text-xs text-muted-foreground">{text('sourceExpense')}</p><p className="tabular-nums mt-1 font-heading font-semibold">{formatMoney(claim.sourceExpense.amount)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{text('originallyOwed')}</p><p className="tabular-nums mt-1 font-heading font-semibold">{formatMoney(claim.originalAmount)}</p></div>
                   <div><p className="text-xs text-muted-foreground">{text('reimbursed')}</p><p className="tabular-nums mt-1 font-heading font-semibold text-income">{formatMoney(claim.amountReimbursed)}</p></div>
                   <div><p className="text-xs text-muted-foreground">{text('remaining')}</p><p className="tabular-nums mt-1 font-heading font-semibold text-reimbursement">{formatMoney(claim.remainingAmount)}</p></div>
                 </div>

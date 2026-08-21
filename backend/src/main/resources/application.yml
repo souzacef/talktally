@@ -50,3 +50,19 @@ talktally:
     jwt:
       secret-base64: ${JWT_SECRET_BASE64:}
       access-ttl-seconds: ${JWT_ACCESS_TTL_SECONDS:3600}
+    rate-limit:
+      enabled: true
+      maximum-entries: 10000
+      expire-after-access: 2h
+      registration:
+        capacity: 3
+        window: 1h
+      login:
+        capacity: 10
+        window: 1m
+      assistant-text:
+        capacity: 20
+        window: 1m
+      assistant-voice:
+        capacity: 6
+        window: 1m

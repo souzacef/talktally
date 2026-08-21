@@ -17,3 +17,5 @@ talktally:
       # Deliberately public, test-only 256-bit key material (32 zero bytes).
       secret-base64: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       access-ttl-seconds: 3600
+    rate-limit:
+      enabled: false

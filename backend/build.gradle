@@ -19,6 +19,7 @@ repositories {
 
 ext {
 	set('springAiVersion', "2.0.0")
+	set('postgresql.version', "42.7.13")
 }
 
 sourceSets {

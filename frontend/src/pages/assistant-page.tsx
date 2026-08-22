@@ -11,27 +11,65 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { assistantApi } from '@/features/assistant/api/assistant-api'
+import {
+  AssistantConversationStorage,
+  MAX_ASSISTANT_CONVERSATION_ENTRIES,
+  assistantConversationStorage,
+  type StoredAssistantConversationEntry,
+} from '@/features/assistant/assistant-conversation-storage'
 import { assistantStatusLabel, assistantText } from '@/features/assistant/assistant-messages'
 import { useVoiceAssistant } from '@/features/assistant/hooks/use-voice-assistant'
+import { useAuth } from '@/features/auth/auth-provider'
 import { ApiError } from '@/lib/api/api-client'
 import { createAudioObjectUrl } from '@/lib/audio/base64-audio'
 import { cn } from '@/lib/utils'
 import type { AssistantStatus, VoiceAssistantResponse } from '@/types/api'
 
-interface ConversationEntry {
+interface ConversationEntry extends StoredAssistantConversationEntry {
   id: number
-  role: 'user' | 'assistant'
-  content: string
-  status?: AssistantStatus
 }
 
-export function AssistantPage() {
+interface AssistantPageProps {
+  conversationStorage?: AssistantConversationStorage
+}
+
+function restoreConversation(entries: StoredAssistantConversationEntry[]): ConversationEntry[] {
+  return entries.map((item, index) => ({ ...item, id: index + 1 }))
+}
+
+function appendEntries(
+  current: ConversationEntry[],
+  additions: ConversationEntry[],
+): ConversationEntry[] {
+  return [...current, ...additions].slice(-MAX_ASSISTANT_CONVERSATION_ENTRIES)
+}
+
+export function AssistantPage({
+  conversationStorage = assistantConversationStorage,
+}: AssistantPageProps = {}) {
+  const { user } = useAuth()
+  if (!user) return null
+  return (
+    <AuthenticatedAssistantPage
+      key={user.userId}
+      userId={user.userId}
+      conversationStorage={conversationStorage}
+    />
+  )
+}
+
+function AuthenticatedAssistantPage({
+  userId,
+  conversationStorage,
+}: Required<AssistantPageProps> & { userId: string }) {
   const { locale } = useLocale()
   const text = (key: Parameters<typeof assistantText>[1]) => assistantText(locale, key)
   const [message, setMessage] = useState('')
-  const [conversation, setConversation] = useState<ConversationEntry[]>([])
+  const [conversation, setConversation] = useState<ConversationEntry[]>(() => (
+    restoreConversation(conversationStorage.read(userId))
+  ))
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const nextMessageId = useRef(0)
+  const nextMessageId = useRef(conversation.length)
 
   function entry(role: ConversationEntry['role'], content: string, status?: AssistantStatus): ConversationEntry {
     nextMessageId.current += 1
@@ -39,15 +77,19 @@ export function AssistantPage() {
   }
 
   function appendVoiceResult(result: VoiceAssistantResponse) {
-    setConversation((current) => [
-      ...current,
+    const additions = [
       entry('user', result.transcript),
       entry('assistant', result.message, result.status),
-    ])
+    ]
+    setConversation((current) => appendEntries(current, additions))
   }
 
   const voice = useVoiceAssistant(appendVoiceResult)
   const textMutation = useMutation({ mutationFn: (submitted: string) => assistantApi.sendMessage(submitted) })
+
+  useEffect(() => {
+    conversationStorage.write(userId, conversation)
+  }, [conversation, conversationStorage, userId])
 
   useEffect(() => {
     const audio = voice.result?.audio
@@ -64,11 +106,13 @@ export function AssistantPage() {
     event.preventDefault()
     const submitted = message
     if (!submitted.trim()) return
-    setConversation((current) => [...current, entry('user', submitted)])
+    const userEntry = entry('user', submitted)
+    setConversation((current) => appendEntries(current, [userEntry]))
     setMessage('')
     textMutation.mutate(submitted, {
       onSuccess: (result) => {
-        setConversation((current) => [...current, entry('assistant', result.message, result.status)])
+        const assistantEntry = entry('assistant', result.message, result.status)
+        setConversation((current) => appendEntries(current, [assistantEntry]))
       },
     })
   }

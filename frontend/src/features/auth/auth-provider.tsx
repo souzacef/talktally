@@ -4,11 +4,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { authApi, type AuthService } from '@/features/auth/api/auth-api'
+import { assistantConversationStorage } from '@/features/assistant/assistant-conversation-storage'
 import {
   authSession,
   type AuthSession,
@@ -62,9 +64,17 @@ export function AuthProvider({
     session.getLastChangeReason,
     session.getServerChangeReason,
   )
+  const authenticatedUserId = useRef<string | null>(user?.userId ?? null)
+  if (user?.userId) authenticatedUserId.current = user.userId
 
   useEffect(
     () => session.subscribeToReason((reason) => {
+      if (reason === 'signed-out' || reason === 'expired') {
+        if (authenticatedUserId.current) {
+          assistantConversationStorage.clear(authenticatedUserId.current)
+        }
+        authenticatedUserId.current = null
+      }
       if (reason === 'expired') {
         privateQueryClient.clear()
       }

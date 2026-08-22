@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider'
 import type { AuthService } from '@/features/auth/api/auth-api'
+import { assistantConversationStorageKey } from '@/features/assistant/assistant-conversation-storage'
 import {
   ACCESS_TOKEN_KEY,
   AUTHENTICATED_USER_KEY,
@@ -73,6 +74,10 @@ describe('AuthProvider', () => {
   it('clears the token and user together on sign-out', async () => {
     const session = new AuthSession(window.sessionStorage)
     session.setAuthenticated('existing-token', response.user)
+    const conversationKey = assistantConversationStorageKey(response.user.userId)
+    const otherConversationKey = assistantConversationStorageKey('another-user')
+    window.sessionStorage.setItem(conversationKey, '[{"role":"user","content":"private"}]')
+    window.sessionStorage.setItem(otherConversationKey, '[{"role":"user","content":"other"}]')
     renderProvider(session)
 
     await userEvent.click(screen.getByRole('button', { name: 'logout' }))
@@ -81,6 +86,8 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('display-name')).toHaveTextContent('no-user')
     expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()
     expect(window.sessionStorage.getItem(AUTHENTICATED_USER_KEY)).toBeNull()
+    expect(window.sessionStorage.getItem(conversationKey)).toBeNull()
+    expect(window.sessionStorage.getItem(otherConversationKey)).not.toBeNull()
   })
 
   it('restores the token and user through a recreated session after reload', () => {
@@ -97,6 +104,8 @@ describe('AuthProvider', () => {
     const session = new AuthSession(window.sessionStorage)
     const privateQueryClient = new QueryClient()
     session.setAuthenticated('expired-token', response.user)
+    const conversationKey = assistantConversationStorageKey(response.user.userId)
+    window.sessionStorage.setItem(conversationKey, '[{"role":"user","content":"private"}]')
     privateQueryClient.setQueryData(['private'], 'private data')
     renderProvider(session, privateQueryClient)
 
@@ -107,5 +116,6 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('session-reason')).toHaveTextContent('expired')
     expect(session.getUser()).toBeNull()
     expect(privateQueryClient.getQueryData(['private'])).toBeUndefined()
+    expect(window.sessionStorage.getItem(conversationKey)).toBeNull()
   })
 })

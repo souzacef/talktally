@@ -37,8 +37,14 @@ describe('AuthFooter', () => {
     renderFooter('pt-BR')
 
     expect(screen.getByText('Criado por Carlos Eduardo Freire de Souza')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Status do backend' })).toBeInTheDocument()
+    const githubLink = screen.getByRole('link', { name: 'GitHub' })
+    const healthLink = screen.getByRole('link', { name: 'Status do backend' })
+    const footer = screen.getByRole('contentinfo')
+
+    expect(footer).toHaveClass('sm:-mx-8')
+    expect(footer).not.toHaveClass('whitespace-nowrap')
+    expect(githubLink.parentElement).toHaveClass('whitespace-nowrap')
+    expect(healthLink.parentElement).toHaveClass('whitespace-nowrap')
   })
 
   it('constructs a single-slash health path from an API base with a trailing slash', () => {

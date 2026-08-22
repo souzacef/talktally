@@ -11,27 +11,31 @@ export function AuthFooter() {
   const backendHealthUrl = buildBackendHealthUrl(environment.apiBaseUrl)
 
   return (
-    <footer className="mt-6 px-2 text-center text-xs leading-relaxed text-muted-foreground">
+    <footer className="mt-6 px-2 text-center text-xs leading-relaxed text-muted-foreground sm:-mx-8">
       <p>
         {text('builtBy')}
-        <span aria-hidden="true"> · </span>
-        <a
-          className={linkClassName}
-          href={GITHUB_PROFILE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {text('github')}
-        </a>
-        <span aria-hidden="true"> · </span>
-        <a
-          className={linkClassName}
-          href={backendHealthUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {text('backendHealth')}
-        </a>
+        <span className="inline-block whitespace-nowrap">
+          <span aria-hidden="true"> · </span>
+          <a
+            className={linkClassName}
+            href={GITHUB_PROFILE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {text('github')}
+          </a>
+        </span>
+        <span className="inline-block whitespace-nowrap">
+          <span aria-hidden="true"> · </span>
+          <a
+            className={linkClassName}
+            href={backendHealthUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {text('backendHealth')}
+          </a>
+        </span>
       </p>
     </footer>
   )

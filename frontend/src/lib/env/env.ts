@@ -23,6 +23,10 @@ export function normalizeApiBaseUrl(value: string): string {
   return url.toString().replace(/\/+$/, '')
 }
 
+export function buildBackendHealthUrl(apiBaseUrl: string): string {
+  return `${normalizeApiBaseUrl(apiBaseUrl)}/actuator/health`
+}
+
 export function readEnvironment(source: Record<string, unknown>) {
   const configured = source.VITE_API_BASE_URL
   const isTest = source.MODE === 'test'

@@ -19,6 +19,9 @@ const enUS = {
   creatingAccount: 'Creating account…',
   alreadyRegistered: 'Already registered?',
   unableToRegister: 'Unable to register',
+  builtBy: 'Built by Carlos Eduardo Freire de Souza',
+  github: 'GitHub',
+  backendHealth: 'Backend health',
 } as const
 
 type AuthMessageKey = keyof typeof enUS
@@ -42,6 +45,9 @@ const ptBR: Record<AuthMessageKey, string> = {
   creatingAccount: 'Criando conta…',
   alreadyRegistered: 'Já possui cadastro?',
   unableToRegister: 'Não foi possível criar a conta',
+  builtBy: 'Criado por Carlos Eduardo Freire de Souza',
+  github: 'GitHub',
+  backendHealth: 'Status do backend',
 }
 
 const messages: Record<AppLocale, Record<AuthMessageKey, string>> = {

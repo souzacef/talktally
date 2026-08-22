@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useLocale } from '@/app/providers/locale-provider'
 import { Brand, Tagline } from '@/components/brand/brand'
+import { AuthFooter } from '@/components/layout/auth-footer'
 import { LocaleControl } from '@/components/layout/locale-control'
 import { ThemeControl } from '@/components/layout/theme-control'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -97,6 +98,7 @@ export function RegisterPage() {
             </p>
           </CardContent>
         </Card>
+        <AuthFooter />
       </div>
     </main>
   )

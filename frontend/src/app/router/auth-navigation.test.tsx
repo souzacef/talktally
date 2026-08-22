@@ -90,6 +90,7 @@ describe('authentication navigation', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(await screen.findByText('Welcome to TalkTally!')).toBeInTheDocument()
+    expect(screen.getByText('Built by Carlos Eduardo Freire de Souza')).toBeInTheDocument()
 
     await signInAsUserB()
 

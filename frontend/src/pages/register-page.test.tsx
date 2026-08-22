@@ -73,5 +73,6 @@ describe('RegisterPage', () => {
     expect(screen.getByLabelText('Nome de exibição')).toBeInTheDocument()
     expect(screen.getByLabelText('Senha')).toHaveAttribute('minlength', '10')
     expect(screen.getByText('10–128 caracteres, com pelo menos uma letra e um número.')).toBeInTheDocument()
+    expect(screen.getByText('Criado por Carlos Eduardo Freire de Souza')).toBeInTheDocument()
   })
 })

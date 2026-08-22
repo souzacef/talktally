@@ -24,6 +24,8 @@ final class TransactionOutputMapper {
 				transaction.source(),
 				transaction.occurrences().size(),
 				managedByReimbursement,
+				transaction.createdAt(),
+				transaction.updatedAt(),
 				transaction.occurrences().stream()
 						.map(occurrence -> new TransactionOccurrenceOutput(
 								occurrence.sequenceNumber(),

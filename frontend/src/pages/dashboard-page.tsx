@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback } from 'react'
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, HandCoins, RotateCcw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -15,6 +15,11 @@ import { peopleApi } from '@/features/reimbursements/api/people-api'
 import { transactionApi } from '@/features/transactions/api/transaction-api'
 import { useVoiceAssistant } from '@/features/assistant/hooks/use-voice-assistant'
 import {
+  AssistantConversationStorage,
+  assistantConversationStorage,
+} from '@/features/assistant/assistant-conversation-storage'
+import { assistantText } from '@/features/assistant/assistant-messages'
+import {
   useCategoryBreakdown,
   useFinancialSummary,
   useMonthlyCashFlow,
@@ -22,6 +27,7 @@ import {
 import { currentMonthRange, trailingSixMonthRange } from '@/lib/dates/reporting-periods'
 import { financialAmountStyle } from '@/lib/money/financial-display'
 import { queryKeys } from '@/lib/query/query-client'
+import type { VoiceAssistantResponse } from '@/types/api'
 
 const CashFlowChart = lazy(() => import('@/components/dashboard/cash-flow-chart').then((module) => ({
   default: module.CashFlowChart,
@@ -33,7 +39,13 @@ function firstName(displayName: string | null | undefined): string | null {
   return displayName?.trim().split(/\s+/)[0] || null
 }
 
-export function DashboardPage() {
+interface DashboardPageProps {
+  conversationStorage?: AssistantConversationStorage
+}
+
+export function DashboardPage({
+  conversationStorage = assistantConversationStorage,
+}: DashboardPageProps = {}) {
   const { user } = useAuth()
   const { locale, t, formatDate, formatMoney } = useLocale()
   const period = currentMonthRange()
@@ -50,7 +62,17 @@ export function DashboardPage() {
     queryKey: queryKeys.people.all,
     queryFn: ({ signal }) => peopleApi.list(signal),
   })
-  const voice = useVoiceAssistant()
+  const appendVoiceResult = useCallback((result: VoiceAssistantResponse) => {
+    if (!user) return
+    conversationStorage.append(user.userId, [
+      { role: 'user', content: result.transcript },
+      { role: 'assistant', content: result.message, status: result.status },
+    ])
+  }, [conversationStorage, user])
+  const voice = useVoiceAssistant(appendVoiceResult, {
+    noSpeechMessage: assistantText(locale, 'noSpeechDetected'),
+    tooShortMessage: assistantText(locale, 'recordingTooShort'),
+  })
   const userFirstName = firstName(user?.displayName)
 
   function toggleVoice() {

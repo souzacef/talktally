@@ -1,6 +1,5 @@
 import { useLocale } from '@/app/providers/locale-provider'
 import { authText } from '@/features/auth/auth-messages'
-import { buildBackendHealthUrl, environment } from '@/lib/env/env'
 
 const GITHUB_PROFILE_URL = 'https://github.com/souzacef'
 const linkClassName = 'font-medium text-foreground/80 underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -8,7 +7,6 @@ const linkClassName = 'font-medium text-foreground/80 underline-offset-4 transit
 export function AuthFooter() {
   const { locale } = useLocale()
   const text = (key: Parameters<typeof authText>[1]) => authText(locale, key)
-  const backendHealthUrl = buildBackendHealthUrl(environment.apiBaseUrl)
 
   return (
     <footer className="mt-6 px-2 text-center text-xs leading-relaxed text-muted-foreground sm:-mx-8">
@@ -29,7 +27,7 @@ export function AuthFooter() {
           <span aria-hidden="true"> · </span>
           <a
             className={linkClassName}
-            href={backendHealthUrl}
+            href="/backend-status"
             target="_blank"
             rel="noopener noreferrer"
           >

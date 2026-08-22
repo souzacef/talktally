@@ -5,6 +5,7 @@ import com.talktally.domain.TransactionKind;
 import com.talktally.domain.TransactionSource;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +22,8 @@ public record TransactionResponse(
 		TransactionSource source,
 		int installmentCount,
 		boolean managedByReimbursement,
+		Instant createdAt,
+		Instant updatedAt,
 		List<TransactionOccurrenceResponse> occurrences) {
 
 	public TransactionResponse {
@@ -40,6 +43,8 @@ public record TransactionResponse(
 				output.source(),
 				output.installmentCount(),
 				output.managedByReimbursement(),
+				output.createdAt(),
+				output.updatedAt(),
 				output.occurrences().stream()
 						.map(TransactionOccurrenceResponse::from)
 						.toList());

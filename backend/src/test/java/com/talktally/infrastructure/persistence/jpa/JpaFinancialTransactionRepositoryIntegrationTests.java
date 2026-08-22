@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.Currency;
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -105,6 +107,19 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 		assertEquals(EVENT_DATE, loaded.eventDate());
 		assertEquals(EVENT_DATE, loaded.firstOccurrenceDate());
 		assertEquals(EVENT_DATE, loaded.occurrences().getFirst().effectiveDate());
+		OffsetDateTime persistedCreatedAt = jdbcTemplate.queryForObject(
+				"SELECT created_at FROM financial_transaction WHERE id = ?",
+				OffsetDateTime.class,
+				original.id().value());
+		OffsetDateTime persistedUpdatedAt = jdbcTemplate.queryForObject(
+				"SELECT updated_at FROM financial_transaction WHERE id = ?",
+				OffsetDateTime.class,
+				original.id().value());
+		assertAll(
+				() -> assertNotNull(persistedCreatedAt),
+				() -> assertNotNull(persistedUpdatedAt),
+				() -> assertEquals(persistedCreatedAt.toInstant(), loaded.createdAt()),
+				() -> assertEquals(persistedUpdatedAt.toInstant(), loaded.updatedAt()));
 	}
 
 	@Test

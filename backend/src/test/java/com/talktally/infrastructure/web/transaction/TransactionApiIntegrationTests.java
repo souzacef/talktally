@@ -22,7 +22,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -155,7 +157,7 @@ class TransactionApiIntegrationTests {
 				"EXPENSE", "  Groceries  ", "87.45", GROCERIES, EVENT_DATE, 1));
 		UUID expenseId = locationId(expense);
 
-		mockMvc.perform(get("/api/v1/transactions/{id}", expenseId)
+		MvcResult persistedExpense = mockMvc.perform(get("/api/v1/transactions/{id}", expenseId)
 						.header("Authorization", bearer(tokenA)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(expenseId.toString()))
@@ -169,8 +171,27 @@ class TransactionApiIntegrationTests {
 				.andExpect(jsonPath("$.source").value("MANUAL"))
 				.andExpect(jsonPath("$.installmentCount").value(1))
 				.andExpect(jsonPath("$.managedByReimbursement").value(false))
+				.andExpect(jsonPath("$.createdAt").isNotEmpty())
+				.andExpect(jsonPath("$.updatedAt").isNotEmpty())
 				.andExpect(jsonPath("$.ownerId").doesNotExist())
-				.andExpect(jsonPath("$.userId").doesNotExist());
+				.andExpect(jsonPath("$.userId").doesNotExist())
+				.andReturn();
+		OffsetDateTime databaseCreatedAt = jdbcTemplate.queryForObject(
+				"SELECT created_at FROM financial_transaction WHERE id = ?",
+				OffsetDateTime.class,
+				expenseId);
+		OffsetDateTime databaseUpdatedAt = jdbcTemplate.queryForObject(
+				"SELECT updated_at FROM financial_transaction WHERE id = ?",
+				OffsetDateTime.class,
+				expenseId);
+		assertEquals(
+				databaseCreatedAt.toInstant(),
+				Instant.parse(JsonPath.read(
+						persistedExpense.getResponse().getContentAsString(), "$.createdAt")));
+		assertEquals(
+				databaseUpdatedAt.toInstant(),
+				Instant.parse(JsonPath.read(
+						persistedExpense.getResponse().getContentAsString(), "$.updatedAt")));
 
 		create(tokenA, transactionJson(
 				"INCOME", "Salary", "5000.00", SALARY, EVENT_DATE, 1));

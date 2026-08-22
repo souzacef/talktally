@@ -42,7 +42,7 @@ import type {
 const initialParams: TransactionListParams = { page: 0, size: 20 }
 
 export function TransactionsPage() {
-  const { locale, formatMoney, formatDate } = useLocale()
+  const { locale, formatMoney, formatDate, formatDateTime } = useLocale()
   const location = useLocation()
   const queryClient = useQueryClient()
   const categories = useCategories()
@@ -246,7 +246,7 @@ export function TransactionsPage() {
           <CardDescription>{transactionText(locale, 'findDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(14rem,1fr)_11rem_minmax(12rem,1fr)_10rem_10rem_auto]" onSubmit={applyFilters}>
+          <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[minmax(14rem,1fr)_10rem_minmax(12rem,1fr)_9.5rem_9.5rem_minmax(12rem,auto)]" onSubmit={applyFilters}>
             <div className="space-y-2">
               <Label htmlFor="transaction-search">{transactionText(locale, 'description')}</Label>
               <div className="relative">
@@ -274,9 +274,9 @@ export function TransactionsPage() {
             </div>
             <div className="space-y-2"><Label htmlFor="transaction-from">{transactionText(locale, 'from')}</Label><Input id="transaction-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="transaction-to">{transactionText(locale, 'to')}</Label><Input id="transaction-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div>
-            <div className="flex items-end gap-2 md:col-span-2 xl:col-span-1">
-              <Button type="submit" className="flex-1">{transactionText(locale, 'apply')}</Button>
-              <Button type="button" variant="ghost" onClick={clearFilters}>{transactionText(locale, 'reset')}</Button>
+            <div className="flex items-end justify-end gap-2 md:col-span-2 xl:col-span-3 2xl:col-span-1">
+              <Button type="submit" className="shrink-0">{transactionText(locale, 'apply')}</Button>
+              <Button type="button" variant="ghost" className="shrink-0" onClick={clearFilters}>{transactionText(locale, 'reset')}</Button>
             </div>
           </form>
           {categories.isError && <p className="mt-3 text-sm text-destructive" role="alert">{transactionText(locale, 'categoryFilteringUnavailable')}</p>}
@@ -310,6 +310,7 @@ export function TransactionsPage() {
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span>{formatDate(transaction.eventDate)}</span>
+                        <span>{transactionText(locale, 'recordedAt')} {formatDateTime(transaction.createdAt)}</span>
                         {transaction.installmentCount > 1 && <span>{transactionText(locale, 'installments', { count: transaction.installmentCount })}</span>}
                         <span>{categoryName}</span>
                         <span>{transactionSourceLabel(transaction.source, locale)}</span>

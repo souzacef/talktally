@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { LOCALE_KEY, LocaleProvider, type AppLocale } from '@/app/providers/locale-provider'
 import { AuthFooter } from '@/components/layout/auth-footer'
-import { buildBackendHealthUrl, environment } from '@/lib/env/env'
 
 function renderFooter(locale: AppLocale) {
   window.localStorage.setItem(LOCALE_KEY, locale)
@@ -16,7 +15,7 @@ function expectSafeExternalLink(link: HTMLElement, href: string) {
 }
 
 describe('AuthFooter', () => {
-  it('renders English attribution with safe GitHub and configured backend-health links', () => {
+  it('renders English attribution with safe GitHub and browser-friendly health links', () => {
     renderFooter('en-US')
 
     expect(screen.getByText('Built by Carlos Eduardo Freire de Souza')).toBeInTheDocument()
@@ -25,11 +24,9 @@ describe('AuthFooter', () => {
       'https://github.com/souzacef',
     )
 
-    const healthUrl = `${environment.apiBaseUrl}/actuator/health`
-    expect(healthUrl).toMatch(/\/actuator\/health$/)
     expectSafeExternalLink(
       screen.getByRole('link', { name: 'Backend health' }),
-      healthUrl,
+      '/backend-status',
     )
   })
 
@@ -47,9 +44,4 @@ describe('AuthFooter', () => {
     expect(healthLink.parentElement).toHaveClass('whitespace-nowrap')
   })
 
-  it('constructs a single-slash health path from an API base with a trailing slash', () => {
-    expect(buildBackendHealthUrl('https://api.example.com/')).toBe(
-      'https://api.example.com/actuator/health',
-    )
-  })
 })

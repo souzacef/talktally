@@ -61,6 +61,8 @@ const expense: TransactionResponse = {
   source: 'MANUAL',
   installmentCount: 1,
   managedByReimbursement: false,
+  createdAt: '2026-08-22T17:35:00Z',
+  updatedAt: '2026-08-22T17:35:00Z',
   occurrences: [
     { sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '12.34', currency: 'BRL' },
   ],
@@ -78,6 +80,8 @@ const reimbursement: TransactionResponse = {
   source: 'VOICE',
   installmentCount: 3,
   managedByReimbursement: true,
+  createdAt: '2026-08-22T17:35:00Z',
+  updatedAt: '2026-08-22T17:35:00Z',
   occurrences: [
     { sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '20.00', currency: 'BRL' },
     { sequenceNumber: 2, effectiveDate: '2026-09-19', amount: '20.00', currency: 'BRL' },
@@ -138,6 +142,8 @@ describe('TransactionsPage category catalog integration', () => {
     expect(expenseRow).not.toBeNull()
     expect(reimbursementRow).not.toBeNull()
     expect(within(expenseRow!).getByText('Food and dining')).toBeInTheDocument()
+    expect(within(expenseRow!).getByText(/^Recorded /)).toBeInTheDocument()
+    expect(within(expenseRow!).getByText('08/19/2026')).toBeInTheDocument()
     expect(within(expenseRow!).queryByText(/1 installment/)).not.toBeInTheDocument()
     expect(within(reimbursementRow!).getByText('3 installments')).toBeInTheDocument()
     expect(within(reimbursementRow!).getAllByText('Reimbursement')).toHaveLength(2)
@@ -167,6 +173,7 @@ describe('TransactionsPage category catalog integration', () => {
     expect(expenseRow).not.toBeNull()
     expect(within(expenseRow!).getByText('Alimentação')).toBeInTheDocument()
     expect(within(expenseRow!).getByText('19/08/2026')).toBeInTheDocument()
+    expect(within(expenseRow!).getByText(/^Registrado em /)).toBeInTheDocument()
     expect(within(expenseRow!).getByText('Despesa')).toBeInTheDocument()
     expect(within(expenseRow!).getByText(/R\$\s*12,34/)).toBeInTheDocument()
   })
@@ -184,6 +191,19 @@ describe('TransactionsPage category catalog integration', () => {
     ))
   })
 
+  it('reflows filter actions before wide screens and prevents translated buttons shrinking', () => {
+    renderPage()
+
+    const apply = screen.getByRole('button', { name: 'Apply' })
+    const actionArea = apply.parentElement
+    const form = apply.closest('form')
+    expect(form).toHaveClass('xl:grid-cols-3')
+    expect(form?.className).toContain('2xl:grid-cols-[')
+    expect(actionArea).toHaveClass('xl:col-span-3', '2xl:col-span-1')
+    expect(apply).toHaveClass('shrink-0')
+    expect(screen.getByRole('button', { name: 'Reset' })).toHaveClass('shrink-0')
+  })
+
   it('creates with the production shape and invalidates transaction and dashboard queries', async () => {
     mocks.transactionList.mockResolvedValue(page([]))
     const { invalidate, user } = renderPage()
@@ -193,7 +213,9 @@ describe('TransactionsPage category catalog integration', () => {
     expect(createCard).not.toBeNull()
     const form = within(createCard!)
 
-    expect(form.getByRole('checkbox', { name: 'Someone owes me for this' })).not.toBeChecked()
+    expect(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' })).toHaveAccessibleDescription(
+      'Track who should reimburse you and how much, without changing the expense.',
+    )
     await user.type(form.getByLabelText('Description'), 'Lunch')
     await user.type(form.getByLabelText('Amount'), '45.67')
     await user.selectOptions(form.getByLabelText('Category'), 'food-id')
@@ -232,7 +254,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.type(form.getByLabelText('First cash-flow date'), '2026-09-10')
     await user.clear(form.getByLabelText('Installments'))
     await user.type(form.getByLabelText('Installments'), '3')
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.selectOptions(await form.findByLabelText('Person'), 'ana-id')
     await user.type(form.getByLabelText('Optional reimbursement note'), 'Rose owes half')
     await user.click(form.getByRole('button', { name: 'Create transaction' }))
@@ -266,7 +288,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.type(form.getByLabelText('Description'), 'Shared dinner')
     await user.type(form.getByLabelText('Amount'), '200,00')
     await user.selectOptions(form.getByLabelText('Category'), 'food-id')
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.selectOptions(await form.findByLabelText('Person'), 'ana-id')
     await user.type(form.getByLabelText('Amount owed'), '100,00')
     await user.click(form.getByRole('button', { name: 'Create transaction' }))
@@ -288,16 +310,16 @@ describe('TransactionsPage category catalog integration', () => {
     await user.click(screen.getByRole('button', { name: 'Add transaction' }))
     const form = within(screen.getByText(/Record an expense or income/).closest<HTMLElement>('[data-slot="card"]')!)
 
-    const checkbox = form.getByRole('checkbox', { name: 'Someone owes me for this' })
+    const checkbox = form.getByRole('checkbox', { name: 'Track reimbursement for this expense' })
     await user.click(checkbox)
     await user.selectOptions(await form.findByLabelText('Person'), 'ana-id')
     await user.type(form.getByLabelText('Amount owed'), '10.00')
     await user.selectOptions(form.getByLabelText('Kind'), 'INCOME')
-    expect(form.queryByRole('checkbox', { name: 'Someone owes me for this' })).not.toBeInTheDocument()
+    expect(form.queryByRole('checkbox', { name: 'Track reimbursement for this expense' })).not.toBeInTheDocument()
     expect(form.queryByLabelText('Amount owed')).not.toBeInTheDocument()
 
     await user.selectOptions(form.getByLabelText('Kind'), 'EXPENSE')
-    expect(form.getByRole('checkbox', { name: 'Someone owes me for this' })).not.toBeChecked()
+    expect(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' })).not.toBeChecked()
     expect(form.queryByLabelText('Amount owed')).not.toBeInTheDocument()
   })
 
@@ -314,7 +336,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.click(screen.getByRole('button', { name: 'Add transaction' }))
     const form = within(screen.getByText(/Record an expense or income/).closest<HTMLElement>('[data-slot="card"]')!)
 
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.click(form.getByRole('button', { name: 'Add new person' }))
     await user.type(form.getByLabelText('Person name'), 'Rose')
     await user.click(form.getByRole('button', { name: 'Add person' }))
@@ -325,7 +347,7 @@ describe('TransactionsPage category catalog integration', () => {
     await waitFor(() => expect(mocks.peopleCreate).toHaveReturned())
     await user.selectOptions(form.getByLabelText('Kind'), 'EXPENSE')
 
-    const checkbox = form.getByRole('checkbox', { name: 'Someone owes me for this' })
+    const checkbox = form.getByRole('checkbox', { name: 'Track reimbursement for this expense' })
     expect(checkbox).not.toBeChecked()
     await user.click(checkbox)
     expect(await form.findByLabelText('Person')).toHaveValue('')
@@ -345,7 +367,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.type(form.getByLabelText('Description'), 'Shared lunch')
     await user.type(form.getByLabelText('Amount'), '80.00')
     await user.selectOptions(form.getByLabelText('Category'), 'food-id')
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.click(form.getByRole('button', { name: 'Add new person' }))
     await user.type(form.getByLabelText('Person name'), 'Rose')
     await user.click(form.getByRole('button', { name: 'Add person' }))
@@ -376,7 +398,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.type(form.getByLabelText('Description'), 'Dinner')
     await user.type(form.getByLabelText('Amount'), '75.00')
     await user.selectOptions(form.getByLabelText('Category'), 'food-id')
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.click(form.getByRole('button', { name: 'Add new person' }))
     await user.type(form.getByLabelText('Person name'), 'Ana Silva')
     await user.click(form.getByRole('button', { name: 'Add person' }))
@@ -399,7 +421,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.type(form.getByLabelText('Description'), 'Shared expense')
     await user.type(form.getByLabelText('Amount'), '200.00')
     await user.selectOptions(form.getByLabelText('Category'), 'food-id')
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.click(form.getByRole('button', { name: 'Create transaction' }))
     expect(await form.findByText('Select the person who owes you.')).toBeInTheDocument()
 
@@ -430,7 +452,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.type(form.getByLabelText('Description'), 'Shared taxi')
     await user.type(form.getByLabelText('Amount'), '90.00')
     await user.selectOptions(form.getByLabelText('Category'), 'food-id')
-    await user.click(form.getByRole('checkbox', { name: 'Someone owes me for this' }))
+    await user.click(form.getByRole('checkbox', { name: 'Track reimbursement for this expense' }))
     await user.selectOptions(await form.findByLabelText('Person'), 'ana-id')
     await user.type(form.getByLabelText('Amount owed'), '45.00')
     await user.type(form.getByLabelText('Optional reimbursement note'), 'Airport ride')
@@ -453,8 +475,8 @@ describe('TransactionsPage category catalog integration', () => {
     await user.click(screen.getByRole('button', { name: 'Adicionar transação' }))
     const form = within(screen.getByText(/Registre uma despesa ou renda/).closest<HTMLElement>('[data-slot="card"]')!)
 
-    const checkbox = form.getByRole('checkbox', { name: 'Alguém me deve por esta despesa' })
-    expect(checkbox).toHaveAccessibleDescription('Acompanhe a pessoa e o valor devido sem alterar a despesa.')
+    const checkbox = form.getByRole('checkbox', { name: 'Registrar reembolso desta despesa' })
+    expect(checkbox).toHaveAccessibleDescription('Acompanhe quem deve reembolsar você e o valor, sem alterar a despesa.')
     await user.type(form.getByLabelText('Descrição'), 'Almoço compartilhado')
     await user.type(form.getByLabelText('Valor'), '60,00')
     await user.selectOptions(form.getByLabelText('Categoria'), 'food-id')
@@ -477,7 +499,7 @@ describe('TransactionsPage category catalog integration', () => {
     await user.click(within(expenseRow!).getByRole('button', { name: /edit/i }))
     const editPanel = screen.getByText('Edit transaction').parentElement
     expect(editPanel).not.toBeNull()
-    expect(within(editPanel!).queryByRole('checkbox', { name: 'Someone owes me for this' })).not.toBeInTheDocument()
+    expect(within(editPanel!).queryByRole('checkbox', { name: 'Track reimbursement for this expense' })).not.toBeInTheDocument()
 
     await user.click(within(editPanel!).getByRole('button', { name: 'Save changes' }))
 

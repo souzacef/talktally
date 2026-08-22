@@ -177,6 +177,7 @@ interface LocaleContextValue {
   t: (key: MessageKey, params?: Params) => string
   formatMoney: (value: number | string) => string
   formatDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string
+  formatDateTime: (value: string | Date) => string
   formatMonthYear: (value: string | Date) => string
 }
 
@@ -236,6 +237,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         day: '2-digit',
         timeZone: 'UTC',
         ...options,
+      }).format(parseDate(date)),
+      formatDateTime: (date) => new Intl.DateTimeFormat(locale, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
       }).format(parseDate(date)),
       formatMonthYear: (date) => monthYear.format(parseDate(date)),
     }

@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/app-shell'
 import { ProtectedRoute } from '@/app/router/protected-route'
 import { useAuth } from '@/features/auth/auth-provider'
 import { AssistantPage } from '@/pages/assistant-page'
+import { BackendStatusPage } from '@/pages/backend-status-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { LoginPage } from '@/pages/login-page'
 import { NotFoundPage } from '@/pages/not-found-page'
@@ -23,6 +24,7 @@ export function AppRouter() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/backend-status" element={<BackendStatusPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<DashboardPage />} />

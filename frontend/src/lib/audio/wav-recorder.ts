@@ -1,13 +1,26 @@
 import { encodePcm16Wav } from '@/lib/audio/wav'
 
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024
+export const SPEECH_ACTIVITY_RMS_THRESHOLD = 0.015
+
+export function rootMeanSquare(samples: Float32Array): number {
+  if (samples.length === 0) return 0
+  let sumOfSquares = 0
+  for (const sample of samples) sumOfSquares += sample * sample
+  return Math.sqrt(sumOfSquares / samples.length)
+}
 
 export class WavMicrophoneRecorder {
+  private readonly onSpeechActivity?: () => void
   private context: AudioContext | null = null
   private stream: MediaStream | null = null
   private source: MediaStreamAudioSourceNode | null = null
   private processor: ScriptProcessorNode | null = null
   private chunks: Float32Array[] = []
+
+  constructor(onSpeechActivity?: () => void) {
+    this.onSpeechActivity = onSpeechActivity
+  }
 
   async start(): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -26,7 +39,11 @@ export class WavMicrophoneRecorder {
       this.processor = this.context.createScriptProcessor(4096, 1, 1)
       this.chunks = []
       this.processor.onaudioprocess = (event) => {
-        this.chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)))
+        const samples = new Float32Array(event.inputBuffer.getChannelData(0))
+        this.chunks.push(samples)
+        if (rootMeanSquare(samples) >= SPEECH_ACTIVITY_RMS_THRESHOLD) {
+          this.onSpeechActivity?.()
+        }
       }
       this.source.connect(this.processor)
       this.processor.connect(this.context.destination)

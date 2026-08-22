@@ -16,6 +16,7 @@ import type { UserAccountResponse, VoiceAssistantResponse } from '@/types/api'
 const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
+  voiceResult: null as VoiceAssistantResponse | null,
 }))
 
 vi.mock('@/features/assistant/api/assistant-api', () => ({
@@ -28,7 +29,7 @@ vi.mock('@/features/assistant/hooks/use-voice-assistant', () => ({
   useVoiceAssistant: (onResult?: (result: VoiceAssistantResponse) => void) => {
     mocks.voiceResultHandler = onResult
     return {
-      result: null,
+      result: mocks.voiceResult,
       error: null,
       state: 'idle',
       isRecording: false,
@@ -87,6 +88,7 @@ async function sendText(message: string) {
 describe('AssistantPage session conversation', () => {
   beforeEach(() => {
     window.localStorage.setItem('talktally.locale', 'en-US')
+    mocks.voiceResult = null
   })
 
   it('restores ordered text messages and status after route unmount and remount', async () => {
@@ -198,5 +200,56 @@ describe('AssistantPage session conversation', () => {
 
     expect(await screen.findByText('Keep working')).toBeInTheDocument()
     expect(await screen.findByText('The reply remains visible.')).toBeInTheDocument()
+  })
+
+  it('uses finance-oriented desktop and compact placeholders in English', () => {
+    renderAssistant()
+
+    expect(screen.getByPlaceholderText('Ask about your finances or record a transaction…')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Ask or record a transaction…')).toBeInTheDocument()
+  })
+
+  it('uses finance-oriented desktop and compact placeholders in pt-BR', () => {
+    window.localStorage.setItem('talktally.locale', 'pt-BR')
+    renderAssistant()
+
+    expect(screen.getByPlaceholderText('Pergunte sobre suas finanças ou registre uma transação…')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Pergunte ou registre uma transação…')).toBeInTheDocument()
+  })
+
+  it('shows voice status once in the response while preserving playback feedback', () => {
+    const storage = new AssistantConversationStorage(window.sessionStorage)
+    storage.write(userA.userId, [
+      { role: 'user', content: 'Voice question' },
+      { role: 'assistant', content: 'Voice answer', status: 'COMPLETED' },
+    ])
+    mocks.voiceResult = {
+      transcript: 'Voice question',
+      message: 'Voice answer',
+      status: 'COMPLETED',
+      speechStatus: 'UNAVAILABLE',
+      audio: null,
+    }
+
+    renderAssistant(userA, storage)
+
+    expect(screen.getAllByText('Completed')).toHaveLength(1)
+    expect(screen.getAllByText('Voice reply unavailable. The result still succeeded.').length).toBeGreaterThan(0)
+  })
+
+  it('formats assistant bold segments while leaving user markup literal', () => {
+    const storage = new AssistantConversationStorage(window.sessionStorage)
+    storage.write(userA.userId, [
+      { role: 'user', content: 'Show **literal user text**' },
+      { role: 'assistant', content: 'You spent **R$ 416.75**.', status: 'COMPLETED' },
+    ])
+
+    renderAssistant(userA, storage)
+
+    const entries = screen.getAllByRole('article')
+    expect(entries[0]).toHaveTextContent('Show **literal user text**')
+    expect(entries[0]?.querySelector('strong')).toBeNull()
+    expect(entries[1]?.querySelector('strong')).toHaveTextContent('R$ 416.75')
+    expect(entries[1]).not.toHaveTextContent('**')
   })
 })

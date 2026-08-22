@@ -11,8 +11,8 @@ const enUS = {
   readyDescription: 'Type a message or use the microphone to get started.',
   thinking: 'Thinking…',
   message: 'Message',
-  placeholder: 'Tell TalkTally what happened…',
-  mobilePlaceholder: 'What happened?',
+  placeholder: 'Ask about your finances or record a transaction…',
+  mobilePlaceholder: 'Ask or record a transaction…',
   sendMessage: 'Send message',
   speakTitle: 'Speak to TalkTally',
   speakDescription: 'Speak naturally and TalkTally will take it from there.',
@@ -33,6 +33,8 @@ const enUS = {
   voiceNeedsClarification: 'Voice command needs clarification',
   voiceReplyUnavailableLabel: 'Voice reply unavailable',
   voiceFailed: 'Voice command failed',
+  noSpeechDetected: 'No speech was detected. Try again.',
+  recordingTooShort: 'Recording was too short. Try again.',
 } as const
 
 type AssistantMessageKey = keyof typeof enUS
@@ -47,8 +49,8 @@ const ptBR: Record<AssistantMessageKey, string> = {
   readyDescription: 'Digite uma mensagem ou use o microfone para começar.',
   thinking: 'Pensando…',
   message: 'Mensagem',
-  placeholder: 'Conte ao TalkTally o que aconteceu…',
-  mobilePlaceholder: 'O que aconteceu?',
+  placeholder: 'Pergunte sobre suas finanças ou registre uma transação…',
+  mobilePlaceholder: 'Pergunte ou registre uma transação…',
   sendMessage: 'Enviar mensagem',
   speakTitle: 'Fale com o TalkTally',
   speakDescription: 'Fale naturalmente e deixe o TalkTally cuidar do resto.',
@@ -69,6 +71,8 @@ const ptBR: Record<AssistantMessageKey, string> = {
   voiceNeedsClarification: 'Comando de voz precisa de esclarecimento',
   voiceReplyUnavailableLabel: 'Resposta por voz indisponível',
   voiceFailed: 'Falha no comando de voz',
+  noSpeechDetected: 'Nenhuma fala foi detectada. Tente novamente.',
+  recordingTooShort: 'A gravação foi curta demais. Tente novamente.',
 }
 
 const messages: Record<AppLocale, Record<AssistantMessageKey, string>> = {

@@ -1,13 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from '@/pages/dashboard-page'
+import { AssistantPage } from '@/pages/assistant-page'
 import { LOCALE_KEY, LocaleProvider } from '@/app/providers/locale-provider'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import { AuthSession } from '@/lib/auth/auth-session'
-import type { TransactionResponse } from '@/types/api'
+import {
+  assistantConversationStorage,
+  assistantConversationStorageKey,
+} from '@/features/assistant/assistant-conversation-storage'
+import type { TransactionResponse, VoiceAssistantResponse } from '@/types/api'
 
 const mocks = vi.hoisted(() => ({
   summary: vi.fn(),
@@ -16,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   transactionList: vi.fn(),
   categoryList: vi.fn(),
   peopleList: vi.fn(),
+  voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
 }))
 
 vi.mock('@/features/dashboard/hooks/use-dashboard', () => ({
@@ -32,6 +38,20 @@ vi.mock('@/features/categories/api/category-api', () => ({
 vi.mock('@/features/reimbursements/api/people-api', () => ({
   peopleApi: { list: mocks.peopleList },
 }))
+vi.mock('@/features/assistant/hooks/use-voice-assistant', () => ({
+  useVoiceAssistant: (onResult?: (result: VoiceAssistantResponse) => void) => {
+    mocks.voiceResultHandler = onResult
+    return {
+      result: null,
+      error: null,
+      state: 'idle',
+      isRecording: false,
+      isProcessing: false,
+      startRecording: vi.fn(),
+      stopRecording: vi.fn(),
+    }
+  },
+}))
 
 const recentTransaction: TransactionResponse = {
   id: 'recent-transaction-id',
@@ -45,6 +65,8 @@ const recentTransaction: TransactionResponse = {
   source: 'MANUAL',
   installmentCount: 1,
   managedByReimbursement: false,
+  createdAt: '2026-08-22T17:35:00Z',
+  updatedAt: '2026-08-22T17:35:00Z',
   occurrences: [
     { sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '7.89', currency: 'BRL' },
   ],
@@ -68,6 +90,7 @@ function renderDashboard(displayName = 'Carlos Eduardo Freire de Souza') {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/transactions" element={<p>All transactions destination</p>} />
               <Route path="/transactions/:transactionId" element={<p>Transaction detail destination</p>} />
+              <Route path="/assistant" element={<AssistantPage />} />
             </Routes>
           </MemoryRouter>
         </AuthProvider>
@@ -146,5 +169,40 @@ describe('Dashboard Recent Activity navigation', () => {
     expect(await screen.findByText(/Alimentação · 19\/08\/2026/)).toBeInTheDocument()
     expect(screen.getAllByText(/R\$\s*7,89/).length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'Ver transação Recent coffee' })).toBeInTheDocument()
+  })
+
+  it('appends one Home voice exchange to existing Assistant history without audio', async () => {
+    assistantConversationStorage.write('user-id', [
+      { role: 'assistant', content: 'Existing history', status: 'COMPLETED' },
+    ])
+    const user = renderDashboard()
+    const result: VoiceAssistantResponse = {
+      transcript: 'How much did I spend?',
+      message: 'You spent R$ 42.00.',
+      status: 'COMPLETED',
+      speechStatus: 'GENERATED',
+      audio: { contentType: 'audio/wav', base64: 'AUDIO_SHOULD_NOT_PERSIST' },
+    }
+
+    act(() => mocks.voiceResultHandler?.(result))
+
+    await waitFor(() => {
+      const serialized = window.sessionStorage.getItem(
+        assistantConversationStorageKey('user-id'),
+      ) ?? ''
+      expect(JSON.parse(serialized)).toEqual([
+        { role: 'assistant', content: 'Existing history', status: 'COMPLETED' },
+        { role: 'user', content: 'How much did I spend?' },
+        { role: 'assistant', content: 'You spent R$ 42.00.', status: 'COMPLETED' },
+      ])
+      expect(serialized).not.toContain('AUDIO_SHOULD_NOT_PERSIST')
+    })
+
+    await user.click(screen.getByRole('link', { name: 'Type instead' }))
+    const entries = screen.getAllByRole('article')
+    expect(entries).toHaveLength(3)
+    expect(entries[0]).toHaveTextContent('Existing history')
+    expect(entries[1]).toHaveTextContent('How much did I spend?')
+    expect(entries[2]).toHaveTextContent('You spent R$ 42.00.')
   })
 })

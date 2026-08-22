@@ -250,6 +250,8 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 				CategoryId.from(entity.getCategoryId()),
 				entity.getEventDate(),
 				entity.getSource(),
-				occurrences);
+				occurrences,
+				entity.getCreatedAt(),
+				entity.getUpdatedAt());
 	}
 }

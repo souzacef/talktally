@@ -86,6 +86,8 @@ export interface TransactionResponse {
   source: TransactionSource
   installmentCount: number
   managedByReimbursement: boolean
+  createdAt: IsoInstant
+  updatedAt: IsoInstant
   occurrences: TransactionOccurrenceResponse[]
 }
 

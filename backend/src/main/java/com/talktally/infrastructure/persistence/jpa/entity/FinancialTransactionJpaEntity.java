@@ -144,4 +144,12 @@ public class FinancialTransactionJpaEntity {
 	public TransactionSource getSource() {
 		return source;
 	}
+
+	public Instant getCreatedAt() {
+		return createdAt;
+	}
+
+	public Instant getUpdatedAt() {
+		return updatedAt;
+	}
 }

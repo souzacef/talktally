@@ -47,4 +47,20 @@ describe('AssistantConversationStorage', () => {
     expect(restored[0]?.content).toBe('Message 5')
     expect(restored.at(-1)?.content).toBe(`Message ${MAX_ASSISTANT_CONVERSATION_ENTRIES + 4}`)
   })
+
+  it('appends to existing history once while retaining the shared bound', () => {
+    const storage = new AssistantConversationStorage(window.sessionStorage)
+    storage.write('append-user', [{ role: 'user', content: 'Existing' }])
+
+    storage.append('append-user', [
+      { role: 'user', content: 'Voice transcript' },
+      { role: 'assistant', content: 'Voice reply', status: 'COMPLETED' },
+    ])
+
+    expect(storage.read('append-user')).toEqual([
+      { role: 'user', content: 'Existing' },
+      { role: 'user', content: 'Voice transcript' },
+      { role: 'assistant', content: 'Voice reply', status: 'COMPLETED' },
+    ])
+  })
 })

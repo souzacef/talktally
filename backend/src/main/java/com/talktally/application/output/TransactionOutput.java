@@ -6,6 +6,7 @@ import com.talktally.domain.TransactionKind;
 import com.talktally.domain.TransactionSource;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -22,6 +23,8 @@ public record TransactionOutput(
 		TransactionSource source,
 		int installmentCount,
 		boolean managedByReimbursement,
+		Instant createdAt,
+		Instant updatedAt,
 		List<TransactionOccurrenceOutput> occurrences) {
 
 	public TransactionOutput {
@@ -34,6 +37,8 @@ public record TransactionOutput(
 		Objects.requireNonNull(eventDate, "event date must not be null");
 		Objects.requireNonNull(firstOccurrenceDate, "first occurrence date must not be null");
 		Objects.requireNonNull(source, "source must not be null");
+		Objects.requireNonNull(createdAt, "created at must not be null");
+		Objects.requireNonNull(updatedAt, "updated at must not be null");
 		Objects.requireNonNull(occurrences, "occurrences must not be null");
 		occurrences = List.copyOf(occurrences);
 		if (installmentCount != occurrences.size()) {
@@ -54,6 +59,8 @@ public record TransactionOutput(
 				source,
 				installmentCount,
 				managed,
+				createdAt,
+				updatedAt,
 				occurrences);
 	}
 }

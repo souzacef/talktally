@@ -13,7 +13,13 @@ const enUS = {
   unableToSignIn: 'Unable to sign in',
   createYourAccount: 'Create your account',
   registerSubtitle: 'A calmer way to understand your money.',
-  displayName: 'Display name',
+  displayName: 'Name',
+  confirmPassword: 'Confirm password',
+  passwordsDoNotMatch: 'Passwords do not match.',
+  showPassword: 'Show password',
+  hidePassword: 'Hide password',
+  showConfirmPassword: 'Show confirm password',
+  hideConfirmPassword: 'Hide confirm password',
   passwordHelp: '10–128 characters with at least one letter and one digit.',
   passwordInvalid: 'Password must contain 10 to 128 characters, including a letter and a digit.',
   creatingAccount: 'Creating account…',
@@ -22,6 +28,10 @@ const enUS = {
   builtBy: 'Built by Carlos Eduardo Freire de Souza',
   github: 'GitHub',
   backendHealth: 'Backend health',
+  backendChecking: 'Checking backend status…',
+  backendUp: 'Backend is up.',
+  backendUnavailable: 'Backend is unavailable or still waking up.',
+  retryBackend: 'Retry',
 } as const
 
 type AuthMessageKey = keyof typeof enUS
@@ -39,7 +49,13 @@ const ptBR: Record<AuthMessageKey, string> = {
   unableToSignIn: 'Não foi possível entrar',
   createYourAccount: 'Crie sua conta',
   registerSubtitle: 'Uma forma mais tranquila de entender seu dinheiro.',
-  displayName: 'Nome de exibição',
+  displayName: 'Nome',
+  confirmPassword: 'Confirmar senha',
+  passwordsDoNotMatch: 'As senhas não coincidem.',
+  showPassword: 'Mostrar senha',
+  hidePassword: 'Ocultar senha',
+  showConfirmPassword: 'Mostrar confirmação da senha',
+  hideConfirmPassword: 'Ocultar confirmação da senha',
   passwordHelp: '10–128 caracteres, com pelo menos uma letra e um número.',
   passwordInvalid: 'A senha deve ter de 10 a 128 caracteres, incluindo uma letra e um número.',
   creatingAccount: 'Criando conta…',
@@ -48,6 +64,10 @@ const ptBR: Record<AuthMessageKey, string> = {
   builtBy: 'Criado por Carlos Eduardo Freire de Souza',
   github: 'GitHub',
   backendHealth: 'Status do backend',
+  backendChecking: 'Verificando o status do backend…',
+  backendUp: 'O backend está disponível.',
+  backendUnavailable: 'O backend está indisponível ou ainda está iniciando.',
+  retryBackend: 'Tentar novamente',
 }
 
 const messages: Record<AppLocale, Record<AuthMessageKey, string>> = {

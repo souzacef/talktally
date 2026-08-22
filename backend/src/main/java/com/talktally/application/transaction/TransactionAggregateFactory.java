@@ -7,6 +7,7 @@ import com.talktally.domain.TransactionOccurrence;
 import com.talktally.domain.TransactionSource;
 import com.talktally.domain.UserId;
 
+import java.time.Instant;
 import java.util.List;
 
 final class TransactionAggregateFactory {
@@ -51,7 +52,9 @@ final class TransactionAggregateFactory {
 					input.categoryId(),
 					input.eventDate(),
 					existing.source(),
-					occurrences);
+					occurrences,
+					existing.createdAt(),
+					Instant.now());
 		}
 		catch (IllegalArgumentException exception) {
 			throw invalidFinancialRules(exception);

@@ -9,11 +9,12 @@ import {
 import { LocaleControl } from '@/components/layout/locale-control'
 
 function Probe() {
-  const { locale, formatDate, formatMoney, formatMonthYear } = useLocale()
+  const { locale, formatDate, formatDateTime, formatMoney, formatMonthYear } = useLocale()
   return (
     <div>
       <span>{locale}</span>
       <span>{formatDate('2026-08-20')}</span>
+      <span>{formatDateTime('2026-08-22T17:35:00Z')}</span>
       <span>{formatMoney(1234.56)}</span>
       <span>{formatMonthYear('2026-08-20')}</span>
     </div>
@@ -31,6 +32,7 @@ describe('LocaleProvider', () => {
     )
 
     expect(screen.getByText('08/20/2026')).toBeInTheDocument()
+    expect(screen.getByText(/Aug 22, 2026/)).toBeInTheDocument()
     expect(screen.getByText(/R\$1,234\.56/)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Português' }))
@@ -38,6 +40,7 @@ describe('LocaleProvider', () => {
     expect(window.localStorage.getItem(LOCALE_KEY)).toBe('pt-BR')
     expect(document.documentElement.lang).toBe('pt-BR')
     expect(screen.getByText('20/08/2026')).toBeInTheDocument()
+    expect(screen.getByText(/22 de ago\. de 2026/)).toBeInTheDocument()
     expect(screen.getByText(/R\$\s*1\.234,56/)).toBeInTheDocument()
     expect(screen.getByText(/agosto de 2026/i)).toBeInTheDocument()
   })

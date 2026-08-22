@@ -36,6 +36,8 @@ const categories: Category[] = [
 const expense: TransactionResponse = {
   id: 'transaction-42', kind: 'EXPENSE', description: 'Dinner with friends', amount: '30.06', currency: 'BRL', categoryId: 'food-category-id', eventDate: '2026-08-19', firstOccurrenceDate: '2026-08-19', source: 'ASSISTANT_TEXT', installmentCount: 1,
   managedByReimbursement: false,
+  createdAt: '2026-08-22T17:35:00Z',
+  updatedAt: '2026-08-22T17:35:00Z',
   occurrences: [{ sequenceNumber: 1, effectiveDate: '2026-08-19', amount: '30.06', currency: 'BRL' }],
 }
 
@@ -102,10 +104,26 @@ describe('TransactionDetailPage', () => {
     expect(screen.getAllByText('08/19/2026')).toHaveLength(1)
     expect(screen.queryByText('First cash-flow date')).not.toBeInTheDocument()
     expect(screen.getByText('Assistant')).toBeInTheDocument()
+    expect(screen.getByText('Recorded')).toBeInTheDocument()
+    expect(screen.getByText(/Aug 22, 2026/)).toBeInTheDocument()
+    expect(screen.queryByText('Updated')).not.toBeInTheDocument()
     expect(screen.getByText(/R\$\s*30\.06/)).toBeInTheDocument()
     expect(screen.queryByText(/1 installment/i)).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('food-category-id')
     expect(document.body.textContent).not.toContain('transaction-42')
+  })
+
+  it('shows the persisted updated timestamp only when it differs from creation', async () => {
+    mocks.get.mockResolvedValue({
+      ...expense,
+      updatedAt: '2026-08-22T18:45:00Z',
+    })
+    renderDetail()
+
+    expect(await screen.findByText('Recorded')).toBeInTheDocument()
+    expect(screen.getByText('Updated')).toBeInTheDocument()
+    expect(screen.getAllByText(/Aug 22, 2026/)).toHaveLength(2)
+    expect(screen.getByText('08/19/2026')).toBeInTheDocument()
   })
 
   it('shows a distinct first cash-flow date for a delayed one-installment transaction', async () => {

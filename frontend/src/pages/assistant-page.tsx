@@ -3,6 +3,7 @@ import { Bot, Send, Sparkles } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useLocale } from '@/app/providers/locale-provider'
 import { AssistantStatusChip, SpeechResult } from '@/components/assistant/assistant-result'
+import { AssistantMessageContent } from '@/components/assistant/assistant-message-content'
 import { VoiceOrb } from '@/components/assistant/voice-orb'
 import { StatePanel } from '@/components/feedback/state-panel'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -84,7 +85,10 @@ function AuthenticatedAssistantPage({
     setConversation((current) => appendEntries(current, additions))
   }
 
-  const voice = useVoiceAssistant(appendVoiceResult)
+  const voice = useVoiceAssistant(appendVoiceResult, {
+    noSpeechMessage: text('noSpeechDetected'),
+    tooShortMessage: text('recordingTooShort'),
+  })
   const textMutation = useMutation({ mutationFn: (submitted: string) => assistantApi.sendMessage(submitted) })
 
   useEffect(() => {
@@ -157,7 +161,9 @@ function AuthenticatedAssistantPage({
                       ? 'rounded-br-md bg-primary text-primary-foreground shadow-sm'
                       : 'rounded-bl-md border bg-card shadow-[var(--shadow-soft)]',
                   )}>
-                    <p>{item.content}</p>
+                    <p>{item.role === 'assistant'
+                      ? <AssistantMessageContent content={item.content} />
+                      : item.content}</p>
                     {item.status && <div className="mt-3"><AssistantStatusChip status={item.status} label={assistantStatusLabel(item.status, locale)} /></div>}
                   </div>
                 </article>
@@ -169,7 +175,6 @@ function AuthenticatedAssistantPage({
             {voice.error && <p className="text-sm text-expense lg:hidden" role="alert">{voice.error}</p>}
             {voice.result && (
               <div className="space-y-3 lg:hidden">
-                <AssistantStatusChip status={voice.result.status} label={assistantStatusLabel(voice.result.status, locale)} />
                 <SpeechResult speechStatus={voice.result.speechStatus} audioUrl={audioUrl} {...speechProps} />
               </div>
             )}
@@ -190,7 +195,6 @@ function AuthenticatedAssistantPage({
             {voice.error && <p className="mt-4 text-sm text-expense" role="alert">{voice.error}</p>}
             {voice.result && (
               <div className="mt-5 w-full space-y-3 text-left">
-                <AssistantStatusChip status={voice.result.status} label={assistantStatusLabel(voice.result.status, locale)} />
                 <SpeechResult speechStatus={voice.result.speechStatus} audioUrl={audioUrl} {...speechProps} />
               </div>
             )}

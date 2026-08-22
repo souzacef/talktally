@@ -1,5 +1,6 @@
 package com.talktally.domain;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,6 +17,8 @@ public final class FinancialTransaction {
 	private final CategoryId categoryId;
 	private final LocalDate eventDate;
 	private final TransactionSource source;
+	private final Instant createdAt;
+	private final Instant updatedAt;
 	private final List<TransactionOccurrence> occurrences;
 
 	private FinancialTransaction(
@@ -27,6 +30,8 @@ public final class FinancialTransaction {
 			CategoryId categoryId,
 			LocalDate eventDate,
 			TransactionSource source,
+			Instant createdAt,
+			Instant updatedAt,
 			List<TransactionOccurrence> occurrences) {
 		this.id = Objects.requireNonNull(id, "id must not be null");
 		this.ownerId = Objects.requireNonNull(ownerId, "owner id must not be null");
@@ -43,6 +48,11 @@ public final class FinancialTransaction {
 		this.categoryId = Objects.requireNonNull(categoryId, "category id must not be null");
 		this.eventDate = Objects.requireNonNull(eventDate, "event date must not be null");
 		this.source = Objects.requireNonNull(source, "source must not be null");
+		this.createdAt = Objects.requireNonNull(createdAt, "created at must not be null");
+		this.updatedAt = Objects.requireNonNull(updatedAt, "updated at must not be null");
+		if (this.updatedAt.isBefore(this.createdAt)) {
+			throw new IllegalArgumentException("updated at must not be before created at");
+		}
 		this.occurrences = validateAndCopyOccurrences(occurrences, totalAmount);
 	}
 
@@ -54,6 +64,7 @@ public final class FinancialTransaction {
 			CategoryId categoryId,
 			LocalDate eventDate,
 			TransactionSource source) {
+		Instant now = Instant.now();
 		return new FinancialTransaction(
 				TransactionId.generate(),
 				ownerId,
@@ -63,6 +74,8 @@ public final class FinancialTransaction {
 				categoryId,
 				eventDate,
 				source,
+				now,
+				now,
 				List.of(new TransactionOccurrence(1, eventDate, totalAmount)));
 	}
 
@@ -76,6 +89,7 @@ public final class FinancialTransaction {
 			TransactionSource source,
 			int installmentCount,
 			LocalDate firstEffectiveDate) {
+		Instant now = Instant.now();
 		return new FinancialTransaction(
 				TransactionId.generate(),
 				ownerId,
@@ -85,6 +99,8 @@ public final class FinancialTransaction {
 				categoryId,
 				eventDate,
 				source,
+				now,
+				now,
 				InstallmentSchedule.allocate(totalAmount, installmentCount, firstEffectiveDate));
 	}
 
@@ -98,6 +114,24 @@ public final class FinancialTransaction {
 			LocalDate eventDate,
 			TransactionSource source,
 			List<TransactionOccurrence> occurrences) {
+		Instant now = Instant.now();
+		return reconstruct(
+				id, ownerId, kind, description, totalAmount, categoryId, eventDate, source,
+				occurrences, now, now);
+	}
+
+	public static FinancialTransaction reconstruct(
+			TransactionId id,
+			UserId ownerId,
+			TransactionKind kind,
+			String description,
+			Money totalAmount,
+			CategoryId categoryId,
+			LocalDate eventDate,
+			TransactionSource source,
+			List<TransactionOccurrence> occurrences,
+			Instant createdAt,
+			Instant updatedAt) {
 		return new FinancialTransaction(
 				id,
 				ownerId,
@@ -107,6 +141,8 @@ public final class FinancialTransaction {
 				categoryId,
 				eventDate,
 				source,
+				createdAt,
+				updatedAt,
 				occurrences);
 	}
 
@@ -178,6 +214,14 @@ public final class FinancialTransaction {
 
 	public TransactionSource source() {
 		return source;
+	}
+
+	public Instant createdAt() {
+		return createdAt;
+	}
+
+	public Instant updatedAt() {
+		return updatedAt;
 	}
 
 	public List<TransactionOccurrence> occurrences() {

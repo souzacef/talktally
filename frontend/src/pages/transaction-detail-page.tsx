@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   CalendarDays,
+  Clock3,
   Layers3,
   Mic2,
   Pencil,
@@ -31,7 +32,7 @@ import { queryKeys } from '@/lib/query/query-client'
 import type { TransactionRequest } from '@/types/api'
 
 export function TransactionDetailPage() {
-  const { locale, formatMoney, formatDate } = useLocale()
+  const { locale, formatMoney, formatDate, formatDateTime } = useLocale()
   const { transactionId = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -190,6 +191,16 @@ export function TransactionDetailPage() {
                 <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Mic2 className="size-4" aria-hidden="true" /> {transactionText(locale, 'recordedVia')}</dt>
                 <dd className="mt-2 font-semibold">{transactionSourceLabel(transaction.source, locale)}</dd>
               </div>
+              <div className="rounded-xl bg-muted/45 p-4">
+                <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Clock3 className="size-4" aria-hidden="true" /> {transactionText(locale, 'recordedAt')}</dt>
+                <dd className="mt-2 font-semibold">{formatDateTime(transaction.createdAt)}</dd>
+              </div>
+              {transaction.updatedAt !== transaction.createdAt && (
+                <div className="rounded-xl bg-muted/45 p-4">
+                  <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Clock3 className="size-4" aria-hidden="true" /> {transactionText(locale, 'updatedAt')}</dt>
+                  <dd className="mt-2 font-semibold">{formatDateTime(transaction.updatedAt)}</dd>
+                </div>
+              )}
               <div className="rounded-xl bg-muted/45 p-4">
                 <dt className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Layers3 className="size-4" aria-hidden="true" /> {transactionText(locale, 'kind')}</dt>
                 <dd className="mt-2 font-semibold"><KindBadge kind={transaction.kind} label={transactionKindLabel(transaction.kind, locale)} /></dd>

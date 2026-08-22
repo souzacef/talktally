@@ -77,6 +77,11 @@ export class AssistantConversationStorage {
     }
   }
 
+  append(userId: string, entries: readonly StoredAssistantConversationEntry[]): void {
+    if (entries.length === 0) return
+    this.write(userId, [...this.read(userId), ...entries])
+  }
+
   clear(userId: string): void {
     if (!userId.trim()) return
     try {

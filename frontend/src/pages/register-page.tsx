@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authText } from '@/features/auth/auth-messages'
 import { useAuth } from '@/features/auth/auth-provider'
+import { PasswordField } from '@/features/auth/components/password-field'
 import { ApiError } from '@/lib/api/api-client'
 
 function validatePassword(password: string, message: string): string | null {
@@ -30,6 +31,7 @@ export function RegisterPage() {
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
 
@@ -40,6 +42,10 @@ export function RegisterPage() {
     const passwordError = validatePassword(password, text('passwordInvalid'))
     if (passwordError) {
       setError(passwordError)
+      return
+    }
+    if (password !== confirmPassword) {
+      setError(text('passwordsDoNotMatch'))
       return
     }
     setError(null)
@@ -85,8 +91,12 @@ export function RegisterPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{text('password')}</Label>
-                <Input id="password" type="password" autoComplete="new-password" required minLength={10} maxLength={128} aria-describedby="password-help" value={password} onChange={(event) => setPassword(event.target.value)} />
+                <PasswordField id="password" autoComplete="new-password" value={password} onChange={setPassword} describedBy="password-help" showLabel={text('showPassword')} hideLabel={text('hidePassword')} />
                 <p id="password-help" className="text-xs leading-relaxed text-muted-foreground">{text('passwordHelp')}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">{text('confirmPassword')}</Label>
+                <PasswordField id="confirm-password" autoComplete="new-password" value={confirmPassword} onChange={setConfirmPassword} showLabel={text('showConfirmPassword')} hideLabel={text('hideConfirmPassword')} />
               </div>
               <Button className="mt-2 w-full" size="lg" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? text('creatingAccount') : text('createAccount')}

@@ -26,7 +26,7 @@ class GeminiTextToSpeechAdapterTests {
 	private static final byte[] PCM = { 0, 1, 2, 3 };
 
 	@Test
-	void finalAssistantTextConfiguredModelAndVoiceAreForwardedWithoutRewriting() {
+	void configuredModelVoiceAndNormalizedSpeechTextAreForwarded() {
 		CapturingTtsClient client = new CapturingTtsClient(response(PCM, "audio/L16;rate=24000"));
 		String assistantText = "Done. I recorded R$42.00 in groceries.";
 
@@ -34,8 +34,10 @@ class GeminiTextToSpeechAdapterTests {
 
 		assertEquals(MODEL, client.model);
 		assertEquals(
-				GeminiTextToSpeechAdapter.SYNTHESIS_INSTRUCTION + assistantText,
+				GeminiTextToSpeechAdapter.SYNTHESIS_INSTRUCTION
+						+ "Done. I recorded 42 Brazilian reais and 0 centavos in groceries.",
 				client.prompt);
+		assertEquals("Done. I recorded R$42.00 in groceries.", assistantText);
 		assertEquals(List.of("AUDIO"), client.config.responseModalities().orElseThrow());
 		assertEquals(
 				VOICE,
@@ -46,6 +48,46 @@ class GeminiTextToSpeechAdapterTests {
 		assertTrue(client.config.tools().isEmpty());
 		assertEquals("audio/wav", speech.contentType());
 		assertTrue(WavPcm16Encoder.isWav(speech.audio()));
+	}
+
+	@Test
+	void normalizesEnglishStyleBrlAmountsWithOrWithoutWhitespace() {
+		assertEquals(
+				"You spent 439 Brazilian reais and 90 centavos, then 1 Brazilian real and 1 centavo.",
+				BrlSpeechTextNormalizer.normalize(
+						"You spent R$ 439.90, then R$1.01."));
+	}
+
+	@Test
+	void normalizesPortugueseStyleBrlAmountsWithSingularAndPluralUnits() {
+		assertEquals(
+				"Você gastou 23 reais e 0 centavos e recebeu 1 real e 1 centavo.",
+				BrlSpeechTextNormalizer.normalize(
+						"Você gastou R$ 23,00 e recebeu R$1,01."));
+	}
+
+	@Test
+	void preservesNumericMeaningAcrossCommonThousandsFormats() {
+		assertEquals(
+				"Total: 1234 Brazilian reais and 56 centavos.",
+				BrlSpeechTextNormalizer.normalize("Total: R$ 1,234.56."));
+		assertEquals(
+				"Total: 1234 reais e 56 centavos.",
+				BrlSpeechTextNormalizer.normalize("Total: R$ 1.234,56."));
+	}
+
+	@Test
+	void normalizesWholeRealAndBrlCodeAmounts() {
+		assertEquals(
+				"Values: 439 Brazilian reais and 2 Brazilian reais.",
+				BrlSpeechTextNormalizer.normalize("Values: R$ 439 and BRL 2."));
+	}
+
+	@Test
+	void leavesMalformedBrlOtherCurrenciesAndNormalProseUnchanged() {
+		String text = "Malformed R$ 12.3 and BRL2; currencies $ 20, US$ 30, USD 40, € 50; normal prose.";
+
+		assertEquals(text, BrlSpeechTextNormalizer.normalize(text));
 	}
 
 	@Test
@@ -61,13 +103,15 @@ class GeminiTextToSpeechAdapterTests {
 	}
 
 	@Test
-	void factualTextIsSentVerbatimWithoutApplicationIdentityOrTools() {
+	void factualTextOutsideExplicitBrlNotationIsUnchangedWithoutApplicationIdentityOrTools() {
 		CapturingTtsClient client = new CapturingTtsClient(response(PCM, "audio/pcm"));
 		String assistantText = "Ana Silva owes you R$ 60.00 for lunch on August 18, 2026.";
 
 		adapter(client).synthesize(assistantText);
 
-		assertTrue(client.prompt.endsWith(assistantText));
+		assertTrue(client.prompt.endsWith(
+				"Ana Silva owes you 60 Brazilian reais and 0 centavos for lunch on August 18, 2026."));
+		assertEquals("Ana Silva owes you R$ 60.00 for lunch on August 18, 2026.", assistantText);
 		assertTrue(client.config.tools().isEmpty());
 		assertFalse(client.prompt.contains("UserId"));
 		assertFalse(client.prompt.contains("TransactionSource"));

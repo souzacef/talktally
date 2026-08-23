@@ -23,3 +23,8 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: () => false,
   }),
 })
+
+Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+  configurable: true,
+  value: () => Promise.resolve(),
+})

@@ -42,6 +42,7 @@ public class GeminiTextToSpeechAdapter implements TextToSpeechPort {
 	@Override
 	public SpeechAudio synthesize(String text) {
 		String validatedText = SpeechSynthesisPolicy.requireValidText(text);
+		String speechText = BrlSpeechTextNormalizer.normalize(validatedText);
 		try {
 			GenerateContentConfig config = GenerateContentConfig.builder()
 					.responseModalities("AUDIO")
@@ -51,7 +52,7 @@ public class GeminiTextToSpeechAdapter implements TextToSpeechPort {
 											.voiceName(voice))))
 					.build();
 			GenerateContentResponse response = client.generate(
-					model, SYNTHESIS_INSTRUCTION + validatedText, config);
+					model, SYNTHESIS_INSTRUCTION + speechText, config);
 			Blob audio = findAudio(response);
 			byte[] providerAudio = audio.data()
 					.filter(bytes -> bytes.length > 0)

@@ -56,12 +56,13 @@ class VoiceAssistantUseCaseTests {
 
 	@Test
 	void successfulAssistantMessageIsSynthesizedAndReturnedAsSpeech() {
-		assistant.output = new AssistantOutput("Recorded safely.", AssistantStatus.COMPLETED);
+		String visibleMessage = "You spent R$ 439.90 in August 2026.";
+		assistant.output = new AssistantOutput(visibleMessage, AssistantStatus.COMPLETED);
 
 		VoiceAssistantOutput output = useCase.execute(ACTOR, input());
 
-		assertEquals("Recorded safely.", textToSpeech.text);
-		assertEquals("Recorded safely.", output.message());
+		assertEquals(visibleMessage, textToSpeech.text);
+		assertEquals(visibleMessage, output.message());
 		assertEquals(AssistantStatus.COMPLETED, output.status());
 		assertEquals(SpeechStatus.GENERATED, output.speechStatus());
 		assertArrayEquals(OUTPUT_AUDIO, output.audio().orElseThrow().audio());

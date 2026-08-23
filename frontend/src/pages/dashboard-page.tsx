@@ -1,8 +1,10 @@
-import { lazy, Suspense, useCallback } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, HandCoins, RotateCcw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useLocale } from '@/app/providers/locale-provider'
+import { AssistantMessageContent } from '@/components/assistant/assistant-message-content'
+import { SpeechResult } from '@/components/assistant/assistant-result'
 import { VoiceOrb } from '@/components/assistant/voice-orb'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { StatePanel } from '@/components/feedback/state-panel'
@@ -25,6 +27,7 @@ import {
   useMonthlyCashFlow,
 } from '@/features/dashboard/hooks/use-dashboard'
 import { currentMonthRange, trailingSixMonthRange } from '@/lib/dates/reporting-periods'
+import { createAudioObjectUrl } from '@/lib/audio/base64-audio'
 import { financialAmountStyle } from '@/lib/money/financial-display'
 import { queryKeys } from '@/lib/query/query-client'
 import type { VoiceAssistantResponse } from '@/types/api'
@@ -73,7 +76,19 @@ export function DashboardPage({
     noSpeechMessage: assistantText(locale, 'noSpeechDetected'),
     tooShortMessage: assistantText(locale, 'recordingTooShort'),
   })
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const userFirstName = firstName(user?.displayName)
+
+  useEffect(() => {
+    const audio = voice.result?.audio
+    if (!audio) {
+      setAudioUrl(null)
+      return
+    }
+    const objectAudio = createAudioObjectUrl(audio.contentType, audio.base64)
+    setAudioUrl(objectAudio.url)
+    return objectAudio.revoke
+  }, [voice.result])
 
   function toggleVoice() {
     if (voice.isRecording) voice.stopRecording()
@@ -107,11 +122,17 @@ export function DashboardPage({
             {voice.error && <p className="mt-3 text-sm text-expense" role="alert">{voice.error}</p>}
             {voice.result && (
               <div className="mt-4 w-full rounded-2xl border bg-card/80 p-3 text-left text-sm" aria-live="polite">
-                <p className="font-semibold">{voice.result.message}</p>
+                <AssistantMessageContent content={voice.result.message} />
                 <p className="mt-1 text-xs text-muted-foreground">{t('dashboard.heard', { transcript: voice.result.transcript })}</p>
-                {voice.result.speechStatus === 'UNAVAILABLE' && (
-                  <p className="mt-2 text-xs text-protected">{t('dashboard.voiceReplyUnavailable')}</p>
-                )}
+                <div className="mt-2">
+                  <SpeechResult
+                    speechStatus={voice.result.speechStatus}
+                    audioUrl={audioUrl}
+                    unavailableLabel={t('dashboard.voiceReplyUnavailable')}
+                    voiceReplyLabel={assistantText(locale, 'voiceReply')}
+                    unsupportedLabel={assistantText(locale, 'audioUnsupported')}
+                  />
+                </div>
               </div>
             )}
             <Link to="/assistant" className="mt-5 text-sm font-semibold text-primary underline-offset-4 hover:underline">{t('dashboard.typeInstead')}</Link>

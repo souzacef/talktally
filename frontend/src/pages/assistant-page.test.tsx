@@ -237,19 +237,27 @@ describe('AssistantPage session conversation', () => {
     expect(screen.getAllByText('Voice reply unavailable. The result still succeeded.').length).toBeGreaterThan(0)
   })
 
-  it('formats assistant bold segments while leaving user markup literal', () => {
+  it('uses semantic Assistant formatting without applying it to user messages', () => {
     const storage = new AssistantConversationStorage(window.sessionStorage)
     storage.write(userA.userId, [
-      { role: 'user', content: 'Show **literal user text**' },
-      { role: 'assistant', content: 'You spent **R$ 416.75**.', status: 'COMPLETED' },
+      { role: 'user', content: '* Show **literal user text**' },
+      {
+        role: 'assistant',
+        content: 'You spent **R$ 416.75**.\n* **Food and dining**: R$ 100.00',
+        status: 'COMPLETED',
+      },
     ])
 
     renderAssistant(userA, storage)
 
     const entries = screen.getAllByRole('article')
-    expect(entries[0]).toHaveTextContent('Show **literal user text**')
+    expect(entries[0]).toHaveTextContent('* Show **literal user text**')
     expect(entries[0]?.querySelector('strong')).toBeNull()
+    expect(entries[0]?.querySelector('ul')).toBeNull()
     expect(entries[1]?.querySelector('strong')).toHaveTextContent('R$ 416.75')
+    expect(entries[1]?.querySelector('ul')).not.toBeNull()
+    expect(entries[1]?.querySelector('li strong')).toHaveTextContent('Food and dining')
     expect(entries[1]).not.toHaveTextContent('**')
+    expect(entries[1]?.querySelector('p ul')).toBeNull()
   })
 })

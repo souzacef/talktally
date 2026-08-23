@@ -38,20 +38,27 @@ vi.mock('@/features/categories/api/category-api', () => ({
 vi.mock('@/features/reimbursements/api/people-api', () => ({
   peopleApi: { list: mocks.peopleList },
 }))
-vi.mock('@/features/assistant/hooks/use-voice-assistant', () => ({
-  useVoiceAssistant: (onResult?: (result: VoiceAssistantResponse) => void) => {
-    mocks.voiceResultHandler = onResult
-    return {
-      result: null,
-      error: null,
-      state: 'idle',
-      isRecording: false,
-      isProcessing: false,
-      startRecording: vi.fn(),
-      stopRecording: vi.fn(),
-    }
-  },
-}))
+vi.mock('@/features/assistant/hooks/use-voice-assistant', async () => {
+  const { useState } = await import('react')
+  return {
+    useVoiceAssistant: (onResult?: (result: VoiceAssistantResponse) => void) => {
+      const [result, setResult] = useState<VoiceAssistantResponse | null>(null)
+      mocks.voiceResultHandler = (nextResult) => {
+        onResult?.(nextResult)
+        setResult(nextResult)
+      }
+      return {
+        result,
+        error: null,
+        state: 'idle',
+        isRecording: false,
+        isProcessing: false,
+        startRecording: vi.fn(),
+        stopRecording: vi.fn(),
+      }
+    },
+  }
+})
 
 const recentTransaction: TransactionResponse = {
   id: 'recent-transaction-id',
@@ -81,7 +88,7 @@ function renderDashboard(displayName = 'Carlos Eduardo Freire de Souza') {
     displayName,
     defaultCurrency: 'BRL',
   })
-  render(
+  const view = render(
     <QueryClientProvider client={client}>
       <LocaleProvider>
         <AuthProvider session={session} privateQueryClient={client}>
@@ -97,11 +104,14 @@ function renderDashboard(displayName = 'Carlos Eduardo Freire de Souza') {
       </LocaleProvider>
     </QueryClientProvider>,
   )
-  return userEvent.setup()
+  return { user: userEvent.setup(), ...view }
 }
 
 describe('Dashboard Recent Activity navigation', () => {
   beforeEach(() => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn() })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+    mocks.voiceResultHandler = undefined
     mocks.summary.mockReturnValue({
       isPending: false,
       error: null,
@@ -139,7 +149,7 @@ describe('Dashboard Recent Activity navigation', () => {
   })
 
   it('navigates View all to the transaction ledger', async () => {
-    const user = renderDashboard()
+    const { user } = renderDashboard()
 
     await user.click(await screen.findByRole('link', { name: 'View all' }))
     expect(screen.getByText('All transactions destination')).toBeInTheDocument()
@@ -152,7 +162,7 @@ describe('Dashboard Recent Activity navigation', () => {
   })
 
   it('shows the friendly category and navigates a recent transaction to detail', async () => {
-    const user = renderDashboard()
+    const { user } = renderDashboard()
 
     expect(await screen.findByText(/Food and dining/)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('food-category-id')
@@ -172,16 +182,17 @@ describe('Dashboard Recent Activity navigation', () => {
   })
 
   it('appends one Home voice exchange to existing Assistant history without audio', async () => {
+    const audioBase64 = 'QUJD'
     assistantConversationStorage.write('user-id', [
       { role: 'assistant', content: 'Existing history', status: 'COMPLETED' },
     ])
-    const user = renderDashboard()
+    const { user } = renderDashboard()
     const result: VoiceAssistantResponse = {
       transcript: 'How much did I spend?',
       message: 'You spent R$ 42.00.',
       status: 'COMPLETED',
       speechStatus: 'GENERATED',
-      audio: { contentType: 'audio/wav', base64: 'AUDIO_SHOULD_NOT_PERSIST' },
+      audio: { contentType: 'audio/wav', base64: audioBase64 },
     }
 
     act(() => mocks.voiceResultHandler?.(result))
@@ -195,7 +206,8 @@ describe('Dashboard Recent Activity navigation', () => {
         { role: 'user', content: 'How much did I spend?' },
         { role: 'assistant', content: 'You spent R$ 42.00.', status: 'COMPLETED' },
       ])
-      expect(serialized).not.toContain('AUDIO_SHOULD_NOT_PERSIST')
+      expect(serialized).not.toContain(audioBase64)
+      expect(serialized).not.toContain('blob:')
     })
 
     await user.click(screen.getByRole('link', { name: 'Type instead' }))
@@ -204,5 +216,60 @@ describe('Dashboard Recent Activity navigation', () => {
     expect(entries[0]).toHaveTextContent('Existing history')
     expect(entries[1]).toHaveTextContent('How much did I spend?')
     expect(entries[2]).toHaveTextContent('You spent R$ 42.00.')
+  })
+
+  it('formats the Home response while preserving the transcript', () => {
+    renderDashboard()
+    const result: VoiceAssistantResponse = {
+      transcript: 'How much did I spend?',
+      message: 'You spent **R$ 42.00**.\n* **Food and dining**: R$ 42.00',
+      status: 'COMPLETED',
+      speechStatus: 'UNAVAILABLE',
+      audio: null,
+    }
+
+    act(() => mocks.voiceResultHandler?.(result))
+
+    expect(screen.getByText('R$ 42.00').tagName).toBe('STRONG')
+    const categoryName = screen.getByText('Food and dining')
+    expect(categoryName.closest('ul')).not.toBeNull()
+    expect(categoryName.closest('li')?.querySelector('strong')).toHaveTextContent('Food and dining')
+    expect(screen.getByText('Heard: How much did I spend?')).toBeInTheDocument()
+    expect(screen.getByText('Voice reply unavailable. The result still succeeded.')).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent('**')
+    expect(document.querySelector('audio')).toBeNull()
+  })
+
+  it('plays generated Home audio and revokes object URLs on replacement and unmount', () => {
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:first-voice-reply')
+      .mockReturnValueOnce('blob:second-voice-reply')
+    const { unmount } = renderDashboard()
+
+    act(() => mocks.voiceResultHandler?.({
+      transcript: 'First question',
+      message: 'First answer',
+      status: 'COMPLETED',
+      speechStatus: 'GENERATED',
+      audio: { contentType: 'audio/wav', base64: 'QUJD' },
+    }))
+
+    expect(screen.getByText('Voice reply')).toBeInTheDocument()
+    expect(document.querySelector('audio')).toHaveAttribute('src', 'blob:first-voice-reply')
+    expect(screen.getByText('Heard: First question')).toBeInTheDocument()
+
+    act(() => mocks.voiceResultHandler?.({
+      transcript: 'Second question',
+      message: 'Second answer',
+      status: 'COMPLETED',
+      speechStatus: 'GENERATED',
+      audio: { contentType: 'audio/wav', base64: 'REVG' },
+    }))
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-voice-reply')
+    expect(document.querySelector('audio')).toHaveAttribute('src', 'blob:second-voice-reply')
+
+    unmount()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:second-voice-reply')
   })
 })

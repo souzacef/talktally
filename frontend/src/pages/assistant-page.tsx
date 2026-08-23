@@ -161,9 +161,9 @@ function AuthenticatedAssistantPage({
                       ? 'rounded-br-md bg-primary text-primary-foreground shadow-sm'
                       : 'rounded-bl-md border bg-card shadow-[var(--shadow-soft)]',
                   )}>
-                    <p>{item.role === 'assistant'
+                    {item.role === 'assistant'
                       ? <AssistantMessageContent content={item.content} />
-                      : item.content}</p>
+                      : <p className="whitespace-pre-wrap">{item.content}</p>}
                     {item.status && <div className="mt-3"><AssistantStatusChip status={item.status} label={assistantStatusLabel(item.status, locale)} /></div>}
                   </div>
                 </article>

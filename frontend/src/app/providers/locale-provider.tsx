@@ -72,7 +72,6 @@ const enUS = {
   'dashboard.categoriesUnavailableDescription': 'Category reporting could not be loaded.',
   'dashboard.noExpenses': 'No expenses yet',
   'dashboard.noExpensesDescription': 'Category totals will appear when expenses are recorded.',
-  'dashboard.occurrences': '{count} occurrences',
   'dashboard.recentActivity': 'Recent activity',
   'dashboard.recentActivityDescription': 'Your latest financial activity',
   'dashboard.viewAll': 'View all',
@@ -150,7 +149,6 @@ const ptBR: Record<MessageKey, string> = {
   'dashboard.categoriesUnavailableDescription': 'Não foi possível carregar o relatório por categoria.',
   'dashboard.noExpenses': 'Nenhuma despesa ainda',
   'dashboard.noExpensesDescription': 'Os totais por categoria aparecerão quando houver despesas registradas.',
-  'dashboard.occurrences': '{count} ocorrências',
   'dashboard.recentActivity': 'Atividade recente',
   'dashboard.recentActivityDescription': 'Sua atividade financeira mais recente',
   'dashboard.viewAll': 'Ver todas',
@@ -169,12 +167,30 @@ const messages: Record<AppLocale, Record<MessageKey, string>> = {
   'pt-BR': ptBR,
 }
 
+const pluralMessages = {
+  'en-US': {
+    'dashboard.occurrences': {
+      one: '{count} occurrence',
+      other: '{count} occurrences',
+    },
+  },
+  'pt-BR': {
+    'dashboard.occurrences': {
+      one: '{count} ocorrência',
+      other: '{count} ocorrências',
+    },
+  },
+} as const
+
+type PluralMessageKey = keyof (typeof pluralMessages)['en-US']
+
 type Params = Record<string, string | number>
 
 interface LocaleContextValue {
   locale: AppLocale
   setLocale: (locale: AppLocale) => void
   t: (key: MessageKey, params?: Params) => string
+  plural: (key: PluralMessageKey, count: number) => string
   formatMoney: (value: number | string) => string
   formatDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string
   formatDateTime: (value: string | Date) => string
@@ -222,6 +238,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       year: 'numeric',
       timeZone: 'UTC',
     })
+    const pluralRules = new Intl.PluralRules(locale)
 
     return {
       locale,
@@ -230,6 +247,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         setLocaleState(nextLocale)
       },
       t: (key, params) => interpolate(messages[locale][key], params),
+      plural: (key, count) => {
+        const form = pluralRules.select(count) === 'one' ? 'one' : 'other'
+        return interpolate(pluralMessages[locale][key][form], { count })
+      },
       formatMoney: (amount) => money.format(Number(amount)),
       formatDate: (date, options = {}) => new Intl.DateTimeFormat(locale, {
         year: 'numeric',

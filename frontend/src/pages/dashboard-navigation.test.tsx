@@ -181,6 +181,47 @@ describe('Dashboard Recent Activity navigation', () => {
     expect(screen.getByRole('link', { name: 'Ver transação Recent coffee' })).toBeInTheDocument()
   })
 
+  it.each([
+    ['en-US', '1 occurrence', '2 occurrences'],
+    ['pt-BR', '1 ocorrência', '2 ocorrências'],
+  ] as const)(
+    'pluralizes category occurrence counts in %s',
+    (locale, singular, plural) => {
+      window.localStorage.setItem(LOCALE_KEY, locale)
+      mocks.categoryBreakdown.mockReturnValue({
+        isPending: false,
+        error: null,
+        data: {
+          categories: [
+            {
+              categoryId: 'food-category-id',
+              code: 'FOOD_DINING',
+              displayName: 'Food and dining',
+              total: '7.89',
+              percentage: '33.33',
+              occurrenceCount: 1,
+              transactionCount: 1,
+            },
+            {
+              categoryId: 'groceries-category-id',
+              code: 'GROCERIES',
+              displayName: 'Groceries',
+              total: '15.78',
+              percentage: '66.67',
+              occurrenceCount: 2,
+              transactionCount: 2,
+            },
+          ],
+        },
+      })
+
+      renderDashboard()
+
+      expect(screen.getByText(singular)).toBeInTheDocument()
+      expect(screen.getByText(plural)).toBeInTheDocument()
+    },
+  )
+
   it('appends one Home voice exchange to existing Assistant history without audio', async () => {
     const audioBase64 = 'QUJD'
     assistantConversationStorage.write('user-id', [

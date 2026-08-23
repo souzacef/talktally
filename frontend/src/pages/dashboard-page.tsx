@@ -50,7 +50,7 @@ export function DashboardPage({
   conversationStorage = assistantConversationStorage,
 }: DashboardPageProps = {}) {
   const { user } = useAuth()
-  const { locale, t, formatDate, formatMoney } = useLocale()
+  const { locale, t, plural, formatDate, formatMoney } = useLocale()
   const period = currentMonthRange()
   const history = trailingSixMonthRange()
   const summary = useFinancialSummary(period.from, period.to)
@@ -204,7 +204,7 @@ export function DashboardPage({
             <ul className="space-y-4">
               {breakdown.data?.categories.map((category) => (
                 <li key={category.categoryId} className="flex items-center justify-between gap-4">
-                  <div className="min-w-0"><p className="truncate font-semibold">{categoryLabelForCode(category.code, category.displayName, locale)}</p><p className="text-xs text-muted-foreground">{t('dashboard.occurrences', { count: category.occurrenceCount })}</p></div>
+                  <div className="min-w-0"><p className="truncate font-semibold">{categoryLabelForCode(category.code, category.displayName, locale)}</p><p className="text-xs text-muted-foreground">{plural('dashboard.occurrences', category.occurrenceCount)}</p></div>
                   <span className="tabular-nums font-heading font-semibold text-expense">{formatMoney(category.total)}</span>
                 </li>
               ))}

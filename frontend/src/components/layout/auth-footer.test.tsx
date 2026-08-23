@@ -25,7 +25,7 @@ describe('AuthFooter', () => {
     )
 
     expectSafeExternalLink(
-      screen.getByRole('link', { name: 'Backend health' }),
+      screen.getByRole('link', { name: 'Service status' }),
       '/backend-status',
     )
   })
@@ -35,7 +35,7 @@ describe('AuthFooter', () => {
 
     expect(screen.getByText('Criado por Carlos Eduardo Freire de Souza')).toBeInTheDocument()
     const githubLink = screen.getByRole('link', { name: 'GitHub' })
-    const healthLink = screen.getByRole('link', { name: 'Status do backend' })
+    const healthLink = screen.getByRole('link', { name: 'Status do serviço' })
     const footer = screen.getByRole('contentinfo')
 
     expect(footer).toHaveClass('sm:-mx-8')

@@ -98,7 +98,7 @@ public class JpaFinancialTransactionRepositoryAdapter implements FinancialTransa
 		PageRequest pageable = PageRequest.of(
 				criteria.page(),
 				criteria.size(),
-				Sort.by(Sort.Order.desc("eventDate"), Sort.Order.asc("id")));
+				Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
 		Page<FinancialTransactionJpaEntity> page = transactionRepository.findAll(
 				searchSpecification(ownerId.value(), criteria), pageable);
 		List<FinancialTransaction> transactions = page.getContent().stream()

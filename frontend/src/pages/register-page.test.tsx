@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -76,7 +76,10 @@ describe('RegisterPage', () => {
     expect(screen.getByLabelText('Confirmar senha')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mostrar senha' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mostrar confirmação da senha' })).toBeInTheDocument()
-    expect(screen.getByText('10–128 caracteres, com pelo menos uma letra e um número.')).toBeInTheDocument()
+    expect(screen.getByText('Requisitos da senha')).toBeInTheDocument()
+    expect(screen.getByText('10–128 caracteres')).toBeInTheDocument()
+    expect(screen.getByText('Pelo menos uma letra')).toBeInTheDocument()
+    expect(screen.getByText('Pelo menos um número')).toBeInTheDocument()
     expect(screen.getByText('Criado por Carlos Eduardo Freire de Souza')).toBeInTheDocument()
   })
 
@@ -107,6 +110,52 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create an account' }))
 
     expect(screen.getByText('Passwords do not match.')).toBeInTheDocument()
+    expect(register).not.toHaveBeenCalled()
+  })
+
+  it('evaluates all password requirements independently without native form validation', async () => {
+    renderRegistration({ signIn: vi.fn(), register: vi.fn() })
+    const form = screen.getByRole('button', { name: 'Create an account' }).closest('form')
+    expect(form).toHaveAttribute('novalidate')
+
+    await userEvent.type(screen.getByLabelText('Password'), '45543')
+
+    expect(screen.getByText('10–128 characters').closest('li')).toHaveAttribute('data-state', 'unmet')
+    expect(screen.getByText('At least one letter').closest('li')).toHaveAttribute('data-state', 'unmet')
+    expect(screen.getByText('At least one number').closest('li')).toHaveAttribute('data-state', 'met')
+    expect(screen.getByRole('button', { name: 'Create an account' })).toBeDisabled()
+  })
+
+  it('shows live mismatch and match feedback and enables only a valid form', async () => {
+    renderRegistration({ signIn: vi.fn(), register: vi.fn() })
+    const submit = screen.getByRole('button', { name: 'Create an account' })
+    await userEvent.type(screen.getByLabelText('Name'), 'Carlos')
+    await userEvent.type(screen.getByLabelText('Email'), 'carlos@example.com')
+    await userEvent.type(screen.getByLabelText('Password'), 'securepass123')
+
+    for (const label of ['10–128 characters', 'At least one letter', 'At least one number']) {
+      expect(screen.getByText(label).closest('li')).toHaveAttribute('data-state', 'met')
+    }
+    expect(submit).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('Confirm password'), 'different123')
+    expect(screen.getByText('Passwords do not match.')).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+
+    await userEvent.clear(screen.getByLabelText('Confirm password'))
+    await userEvent.type(screen.getByLabelText('Confirm password'), 'securepass123')
+    expect(screen.getByText('Passwords match.')).toBeInTheDocument()
+    expect(submit).toBeEnabled()
+  })
+
+  it('defensively rejects programmatic invalid submission with inline guidance', () => {
+    const register = vi.fn()
+    renderRegistration({ signIn: vi.fn(), register })
+    const form = screen.getByRole('button', { name: 'Create an account' }).closest('form')
+
+    fireEvent.submit(form!)
+
+    expect(screen.getByText('Complete the registration requirements before continuing.')).toBeInTheDocument()
+    expect(screen.getByText('Enter your name.')).toBeInTheDocument()
     expect(register).not.toHaveBeenCalled()
   })
 

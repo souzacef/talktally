@@ -33,6 +33,8 @@ const enUS = {
   voiceNeedsClarification: 'Voice command needs clarification',
   voiceReplyUnavailableLabel: 'Voice reply unavailable',
   voiceFailed: 'Voice command failed',
+  voiceRecordAnother: 'Record another message',
+  voiceTryAgain: 'Try recording again',
   noSpeechDetected: 'No speech was detected. Try again.',
   recordingTooShort: 'Recording was too short. Try again.',
 } as const
@@ -71,6 +73,8 @@ const ptBR: Record<AssistantMessageKey, string> = {
   voiceNeedsClarification: 'Comando de voz precisa de esclarecimento',
   voiceReplyUnavailableLabel: 'Resposta por voz indisponível',
   voiceFailed: 'Falha no comando de voz',
+  voiceRecordAnother: 'Gravar outra mensagem',
+  voiceTryAgain: 'Tentar gravar novamente',
   noSpeechDetected: 'Nenhuma fala foi detectada. Tente novamente.',
   recordingTooShort: 'A gravação foi curta demais. Tente novamente.',
 }

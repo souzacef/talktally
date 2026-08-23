@@ -10,6 +10,7 @@ interface PasswordFieldProps {
   showLabel: string
   hideLabel: string
   describedBy?: string
+  invalid?: boolean
 }
 
 export function PasswordField({
@@ -20,6 +21,7 @@ export function PasswordField({
   showLabel,
   hideLabel,
   describedBy,
+  invalid = false,
 }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false)
   const Icon = visible ? EyeOff : Eye
@@ -35,6 +37,7 @@ export function PasswordField({
         minLength={10}
         maxLength={128}
         aria-describedby={describedBy}
+        aria-invalid={invalid}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

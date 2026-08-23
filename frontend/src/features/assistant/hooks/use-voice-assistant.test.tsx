@@ -137,6 +137,22 @@ describe('useVoiceAssistant capture lifecycle', () => {
     expect(mocks.sendVoice).toHaveBeenCalledTimes(1)
   })
 
+  it('clears a completed result only when the user starts another recording', async () => {
+    const recorder = new TestRecorder()
+    const { result } = renderVoice(recorder)
+    await start(result)
+    act(() => recorder.signalActivity())
+    await act(async () => vi.advanceTimersByTimeAsync(END_OF_SPEECH_SILENCE_MS))
+
+    expect(result.current.result?.message).toBe('Assistant reply')
+    expect(result.current.state).toBe('speech-unavailable')
+
+    await start(result)
+
+    expect(result.current.result).toBeUndefined()
+    expect(result.current.state).toBe('recording')
+  })
+
   it('cannot double-submit when manual stop races automatic silence completion', async () => {
     const recorder = new TestRecorder()
     const { result } = renderVoice(recorder)

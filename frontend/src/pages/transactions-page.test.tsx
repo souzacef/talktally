@@ -176,6 +176,8 @@ describe('TransactionsPage category catalog integration', () => {
     expect(within(expenseRow!).getByText(/^Registrado em /)).toBeInTheDocument()
     expect(within(expenseRow!).getByText('Despesa')).toBeInTheDocument()
     expect(within(expenseRow!).getByText(/R\$\s*12,34/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Aplicar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Limpar' })).toBeInTheDocument()
   })
 
   it('uses category IDs internally when applying the friendly category filter', async () => {
@@ -191,15 +193,15 @@ describe('TransactionsPage category catalog integration', () => {
     ))
   })
 
-  it('reflows filter actions before wide screens and prevents translated buttons shrinking', () => {
+  it('keeps both filter actions in a separate full-width row', () => {
     renderPage()
 
     const apply = screen.getByRole('button', { name: 'Apply' })
     const actionArea = apply.parentElement
     const form = apply.closest('form')
-    expect(form).toHaveClass('xl:grid-cols-3')
-    expect(form?.className).toContain('2xl:grid-cols-[')
-    expect(actionArea).toHaveClass('xl:col-span-3', '2xl:col-span-1')
+    expect(form).toHaveClass('xl:grid-cols-5')
+    expect(form?.className).not.toContain('2xl:grid-cols-[')
+    expect(actionArea).toHaveClass('col-span-full', 'flex-wrap', 'justify-end')
     expect(apply).toHaveClass('shrink-0')
     expect(screen.getByRole('button', { name: 'Reset' })).toHaveClass('shrink-0')
   })

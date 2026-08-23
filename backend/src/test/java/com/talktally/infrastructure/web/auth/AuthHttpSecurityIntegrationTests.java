@@ -35,13 +35,19 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD;
+import static org.springframework.http.HttpHeaders.ORIGIN;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties =
+		"talktally.web.cors.allowed-origins=https://frontend.example")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
@@ -251,6 +257,37 @@ class AuthHttpSecurityIntegrationTests {
 	void actuatorHealthIsPublic() throws Exception {
 		mockMvc.perform(get("/actuator/health"))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void actuatorHealthAllowsOnlyTheConfiguredFrontendOrigin() throws Exception {
+		mockMvc.perform(options("/actuator/health")
+						.header(ORIGIN, "https://frontend.example")
+						.header(ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(
+						ACCESS_CONTROL_ALLOW_ORIGIN,
+						"https://frontend.example"));
+
+		mockMvc.perform(options("/actuator/health/readiness")
+						.header(ORIGIN, "https://frontend.example")
+						.header(ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(
+						ACCESS_CONTROL_ALLOW_ORIGIN,
+						"https://frontend.example"));
+
+		mockMvc.perform(options("/actuator/health")
+						.header(ORIGIN, "https://unrelated.example")
+						.header(ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+				.andExpect(status().isForbidden())
+				.andExpect(header().doesNotExist(ACCESS_CONTROL_ALLOW_ORIGIN));
+	}
+
+	@Test
+	void otherActuatorEndpointsRemainUnavailable() throws Exception {
+		mockMvc.perform(get("/actuator/env"))
+				.andExpect(status().is4xxClientError());
 	}
 
 	private MvcResult login(String email, String password) throws Exception {

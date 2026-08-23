@@ -24,6 +24,8 @@ public class ApiCorsConfiguration {
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/api/**", configuration);
+		source.registerCorsConfiguration("/actuator/health", configuration);
+		source.registerCorsConfiguration("/actuator/health/**", configuration);
 		return source;
 	}
 }

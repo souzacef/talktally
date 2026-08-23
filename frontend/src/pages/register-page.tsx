@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Check, Circle, X } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useLocale } from '@/app/providers/locale-provider'
 import { Brand, Tagline } from '@/components/brand/brand'
@@ -16,11 +16,24 @@ import { useAuth } from '@/features/auth/auth-provider'
 import { PasswordField } from '@/features/auth/components/password-field'
 import { ApiError } from '@/lib/api/api-client'
 
-function validatePassword(password: string, message: string): string | null {
-  if (password.length < 10 || password.length > 128 || !/\p{L}/u.test(password) || !/\d/.test(password)) {
-    return message
-  }
-  return null
+const EMAIL_LOCAL_CHARACTERS = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i
+const EMAIL_DOMAIN_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i
+
+function isDisplayNameValid(value: string): boolean {
+  const normalized = value.trim()
+  return normalized.length >= 1 && normalized.length <= 120
+}
+
+function isEmailValid(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized || normalized.length > 320 || /\s/.test(normalized)) return false
+  const parts = normalized.split('@')
+  if (parts.length !== 2) return false
+  const [localPart = '', domain = ''] = parts
+  if (!localPart || localPart.length > 64 || !EMAIL_LOCAL_CHARACTERS.test(localPart)) return false
+  if (localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) return false
+  const labels = domain.split('.')
+  return labels.length >= 2 && labels.every((label) => EMAIL_DOMAIN_LABEL.test(label))
 }
 
 export function RegisterPage() {
@@ -34,18 +47,27 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+
+  const passwordChecks = {
+    length: password.length >= 10 && password.length <= 128,
+    letter: /\p{L}/u.test(password),
+    number: /\p{Nd}/u.test(password),
+  }
+  const passwordValid = Object.values(passwordChecks).every(Boolean)
+  const displayNameValid = isDisplayNameValid(displayName)
+  const emailValid = isEmailValid(email)
+  const confirmationStarted = confirmPassword.length > 0
+  const passwordsMatch = confirmationStarted && password === confirmPassword
+  const formValid = displayNameValid && emailValid && passwordValid && passwordsMatch
 
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const passwordError = validatePassword(password, text('passwordInvalid'))
-    if (passwordError) {
-      setError(passwordError)
-      return
-    }
-    if (password !== confirmPassword) {
-      setError(text('passwordsDoNotMatch'))
+    setSubmitAttempted(true)
+    if (!formValid) {
+      setError(text('registrationInvalid'))
       return
     }
     setError(null)
@@ -80,25 +102,54 @@ export function RegisterPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <form className="space-y-4" onSubmit={submit}>
+            <form className="space-y-4" noValidate onSubmit={submit}>
               <div className="space-y-2">
                 <Label htmlFor="display-name">{text('displayName')}</Label>
-                <Input id="display-name" autoComplete="name" required maxLength={120} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                <Input id="display-name" autoComplete="name" required maxLength={120} aria-invalid={(submitAttempted || displayName.length > 0) && !displayNameValid} aria-describedby={!displayNameValid && submitAttempted ? 'display-name-error' : undefined} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                {!displayNameValid && submitAttempted && <p id="display-name-error" className="text-xs text-destructive">{text('nameInvalid')}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">{text('email')}</Label>
-                <Input id="email" type="email" autoComplete="email" required maxLength={320} value={email} onChange={(event) => setEmail(event.target.value)} />
+                <Input id="email" type="email" autoComplete="email" required maxLength={320} aria-invalid={(submitAttempted || email.length > 0) && !emailValid} aria-describedby={!emailValid && (submitAttempted || email.length > 0) ? 'email-error' : undefined} value={email} onChange={(event) => setEmail(event.target.value)} />
+                {!emailValid && (submitAttempted || email.length > 0) && <p id="email-error" className="text-xs text-destructive">{text('emailInvalid')}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{text('password')}</Label>
-                <PasswordField id="password" autoComplete="new-password" value={password} onChange={setPassword} describedBy="password-help" showLabel={text('showPassword')} hideLabel={text('hidePassword')} />
-                <p id="password-help" className="text-xs leading-relaxed text-muted-foreground">{text('passwordHelp')}</p>
+                <PasswordField id="password" autoComplete="new-password" value={password} onChange={setPassword} describedBy="password-requirements" invalid={password.length > 0 && !passwordValid} showLabel={text('showPassword')} hideLabel={text('hidePassword')} />
+                <div id="password-requirements" className="space-y-1.5 text-xs" aria-label={text('passwordRequirements')}>
+                  <p className="font-medium text-foreground">{text('passwordRequirements')}</p>
+                  <ul className="space-y-1">
+                    {([
+                      ['length', 'passwordLengthRequirement'],
+                      ['letter', 'passwordLetterRequirement'],
+                      ['number', 'passwordNumberRequirement'],
+                    ] as const).map(([rule, key]) => {
+                      const state = password.length === 0 ? 'neutral' : passwordChecks[rule] ? 'met' : 'unmet'
+                      const Icon = state === 'met' ? Check : state === 'unmet' ? X : Circle
+                      return (
+                        <li key={rule} data-state={state} className={state === 'met' ? 'flex items-center gap-2 text-income' : state === 'unmet' ? 'flex items-center gap-2 text-destructive' : 'flex items-center gap-2 text-muted-foreground'}>
+                          <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                          <span>
+                            {state !== 'neutral' && <span className="sr-only">{text(state === 'met' ? 'requirementMet' : 'requirementNotMet')}: </span>}
+                            {text(key)}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm-password">{text('confirmPassword')}</Label>
-                <PasswordField id="confirm-password" autoComplete="new-password" value={confirmPassword} onChange={setConfirmPassword} showLabel={text('showConfirmPassword')} hideLabel={text('hideConfirmPassword')} />
+                <PasswordField id="confirm-password" autoComplete="new-password" value={confirmPassword} onChange={setConfirmPassword} describedBy={confirmationStarted ? 'password-confirmation-feedback' : undefined} invalid={confirmationStarted && !passwordsMatch} showLabel={text('showConfirmPassword')} hideLabel={text('hideConfirmPassword')} />
+                {confirmationStarted && (
+                  <p id="password-confirmation-feedback" className={passwordsMatch ? 'flex items-center gap-2 text-xs text-income' : 'flex items-center gap-2 text-xs text-destructive'} aria-live="polite">
+                    {passwordsMatch ? <Check className="size-3.5" aria-hidden="true" /> : <X className="size-3.5" aria-hidden="true" />}
+                    {text(passwordsMatch ? 'passwordsMatch' : 'passwordsDoNotMatch')}
+                  </p>
+                )}
               </div>
-              <Button className="mt-2 w-full" size="lg" type="submit" disabled={isSubmitting}>
+              <Button className="mt-2 w-full" size="lg" type="submit" disabled={!formValid || isSubmitting}>
                 {isSubmitting ? text('creatingAccount') : text('createAccount')}
                 {!isSubmitting && <ArrowRight aria-hidden="true" />}
               </Button>

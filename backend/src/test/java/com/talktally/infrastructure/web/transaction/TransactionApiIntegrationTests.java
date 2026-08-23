@@ -9,6 +9,8 @@ import com.talktally.domain.CategoryId;
 import com.talktally.domain.TransactionKind;
 import com.talktally.domain.TransactionSource;
 import com.talktally.domain.UserId;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -73,6 +76,9 @@ class TransactionApiIntegrationTests {
 
 	@Autowired
 	private CreateTransactionUseCase createTransactionUseCase;
+
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	private String tokenA;
 	private String tokenB;
@@ -367,6 +373,54 @@ class TransactionApiIntegrationTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items", hasSize(1)))
 				.andExpect(jsonPath("$.items[0].description").value("Weekend Groceries"));
+	}
+
+	@Test
+	void listsNewestRecordedActivityFirstAndEditingDoesNotReorderIt() throws Exception {
+		UUID newerEventRecordedEarlier = locationId(create(tokenA, transactionJson(
+				"EXPENSE", "Newer event recorded earlier", "10.00", GROCERIES,
+				EVENT_DATE.plusDays(5), 1)));
+		UUID olderEventRecordedLater = locationId(create(tokenA, transactionJson(
+				"EXPENSE", "Older event recorded later", "20.00", GROCERIES,
+				EVENT_DATE.minusDays(5), 1)));
+		setTransactionTimestamps(
+				newerEventRecordedEarlier,
+				Instant.parse("2026-08-22T12:00:00Z"),
+				Instant.parse("2026-08-22T12:00:00Z"));
+		setTransactionTimestamps(
+				olderEventRecordedLater,
+				Instant.parse("2026-08-22T13:00:00Z"),
+				Instant.parse("2026-08-22T13:00:00Z"));
+		entityManager.clear();
+
+		assertRecordedOrder(olderEventRecordedLater, newerEventRecordedEarlier);
+
+		mockMvc.perform(put("/api/v1/transactions/{id}", newerEventRecordedEarlier)
+						.header("Authorization", bearer(tokenA))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(transactionJson(
+								"EXPENSE", "Edited without becoming recent", "10.00",
+								GROCERIES, EVENT_DATE.plusDays(5), 1)))
+				.andExpect(status().isOk());
+
+		assertRecordedOrder(olderEventRecordedLater, newerEventRecordedEarlier);
+	}
+
+	private void assertRecordedOrder(UUID first, UUID second) throws Exception {
+		mockMvc.perform(get("/api/v1/transactions")
+						.header("Authorization", bearer(tokenA)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items", hasSize(2)))
+				.andExpect(jsonPath("$.items[0].id").value(first.toString()))
+				.andExpect(jsonPath("$.items[1].id").value(second.toString()));
+	}
+
+	private void setTransactionTimestamps(UUID id, Instant createdAt, Instant updatedAt) {
+		jdbcTemplate.update(
+				"UPDATE financial_transaction SET created_at = ?, updated_at = ? WHERE id = ?",
+				OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC),
+				OffsetDateTime.ofInstant(updatedAt, ZoneOffset.UTC),
+				id);
 	}
 
 	@Test

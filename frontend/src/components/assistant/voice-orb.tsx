@@ -1,4 +1,4 @@
-import { Check, CircleAlert, LoaderCircle, Mic, Square, VolumeX } from 'lucide-react'
+import { LoaderCircle, Mic, Square } from 'lucide-react'
 import { useLocale } from '@/app/providers/locale-provider'
 import { Button } from '@/components/ui/button'
 import { assistantText } from '@/features/assistant/assistant-messages'
@@ -9,10 +9,10 @@ const stateContent: Record<VoiceWorkflowState, { key: Parameters<typeof assistan
   idle: { key: 'voiceStart', icon: Mic },
   recording: { key: 'voiceStop', icon: Square },
   processing: { key: 'voiceProcessing', icon: LoaderCircle },
-  completed: { key: 'voiceCompleted', icon: Check },
-  'needs-clarification': { key: 'voiceNeedsClarification', icon: CircleAlert },
-  'speech-unavailable': { key: 'voiceReplyUnavailableLabel', icon: VolumeX },
-  error: { key: 'voiceFailed', icon: CircleAlert },
+  completed: { key: 'voiceRecordAnother', icon: Mic },
+  'needs-clarification': { key: 'voiceTryAgain', icon: Mic },
+  'speech-unavailable': { key: 'voiceTryAgain', icon: Mic },
+  error: { key: 'voiceTryAgain', icon: Mic },
 }
 
 interface VoiceOrbProps {
@@ -27,13 +27,6 @@ export function VoiceOrb({ state, onClick, compact = false }: VoiceOrbProps) {
   const label = assistantText(locale, key)
   const interactive = state === 'idle' || state === 'recording' || state === 'completed'
     || state === 'needs-clarification' || state === 'speech-unavailable' || state === 'error'
-  const tone = state === 'completed'
-    ? 'bg-income text-white'
-    : state === 'needs-clarification'
-      ? 'bg-warning text-white'
-      : state === 'speech-unavailable'
-        ? 'bg-protected text-white'
-        : 'bg-primary text-primary-foreground'
 
   return (
     <span className={cn('relative inline-grid place-items-center', compact ? 'size-12' : 'size-28')}>
@@ -53,7 +46,7 @@ export function VoiceOrb({ state, onClick, compact = false }: VoiceOrbProps) {
         className={cn(
           'relative z-10 rounded-full border-0 shadow-[var(--shadow-voice)] transition-transform hover:scale-[1.03]',
           compact ? 'size-12' : 'size-20',
-          tone,
+          'bg-primary text-primary-foreground',
         )}
       >
         <Icon className={cn(compact ? 'size-5' : 'size-7', state === 'processing' && 'animate-spin')} aria-hidden="true" />

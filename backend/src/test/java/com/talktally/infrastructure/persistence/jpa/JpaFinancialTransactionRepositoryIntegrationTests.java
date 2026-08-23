@@ -12,6 +12,8 @@ import com.talktally.domain.TransactionId;
 import com.talktally.domain.TransactionKind;
 import com.talktally.domain.TransactionSource;
 import com.talktally.domain.UserId;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,8 +26,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.Currency;
 import java.util.List;
@@ -60,6 +64,9 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	@Autowired
 	private Flyway flyway;
@@ -307,17 +314,65 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 	}
 
 	@Test
-	void paginationUsesEventDateDescendingThenStableIdOrdering() {
+	void searchOrdersActivityByCreatedAtAndNotEventOrUpdatedDate() {
+		FinancialTransaction newerEventRecordedEarlier = FinancialTransaction.createSingleOccurrence(
+				USER_A,
+				TransactionKind.EXPENSE,
+				"Newer event recorded earlier",
+				Money.brl(new BigDecimal("10.00")),
+				SHOPPING_CATEGORY,
+				EVENT_DATE.plusDays(5),
+				TransactionSource.MANUAL);
+		FinancialTransaction olderEventRecordedLater = FinancialTransaction.createSingleOccurrence(
+				USER_A,
+				TransactionKind.EXPENSE,
+				"Older event recorded later",
+				Money.brl(new BigDecimal("20.00")),
+				SHOPPING_CATEGORY,
+				EVENT_DATE.minusDays(5),
+				TransactionSource.MANUAL);
+		repository.save(newerEventRecordedEarlier);
+		repository.save(olderEventRecordedLater);
+		Instant earlier = Instant.parse("2026-08-22T12:00:00Z");
+		Instant later = Instant.parse("2026-08-22T13:00:00Z");
+		setTransactionTimestamps(newerEventRecordedEarlier.id(), earlier, earlier);
+		setTransactionTimestamps(olderEventRecordedLater.id(), later, later);
+		entityManager.clear();
+
+		FinancialTransactionPage initial = repository.search(
+				USER_A, criteria(null, null, null, null, null, 0, 20));
+		assertEquals(olderEventRecordedLater.id(), initial.content().get(0).id());
+		assertEquals(newerEventRecordedEarlier.id(), initial.content().get(1).id());
+
+		setTransactionTimestamps(
+				newerEventRecordedEarlier.id(),
+				earlier,
+				Instant.parse("2026-08-22T14:00:00Z"));
+		entityManager.clear();
+		FinancialTransactionPage afterEdit = repository.search(
+				USER_A, criteria(null, null, null, null, null, 0, 20));
+		assertEquals(olderEventRecordedLater.id(), afterEdit.content().get(0).id());
+		assertEquals(newerEventRecordedEarlier.id(), afterEdit.content().get(1).id());
+	}
+
+	@Test
+	void paginationUsesCreatedAtDescendingThenStableDescendingIdOrdering() {
 		FinancialTransaction first = createExpense(USER_A, "First id");
 		FinancialTransaction second = createExpense(USER_A, "Second id");
 		FinancialTransaction third = createExpense(USER_A, "Third id");
 		List<FinancialTransaction> expected = List.of(first, second, third).stream()
 				.sorted(Comparator.comparing(
-						transaction -> transaction.id().value().toString()))
+						(FinancialTransaction transaction) -> transaction.id().value().toString())
+						.reversed())
 				.toList();
 		repository.save(first);
 		repository.save(second);
 		repository.save(third);
+		Instant tiedCreatedAt = Instant.parse("2026-08-22T12:00:00Z");
+		setTransactionTimestamps(first.id(), tiedCreatedAt, tiedCreatedAt);
+		setTransactionTimestamps(second.id(), tiedCreatedAt, tiedCreatedAt);
+		setTransactionTimestamps(third.id(), tiedCreatedAt, tiedCreatedAt);
+		entityManager.clear();
 
 		FinancialTransactionPage pageZero = repository.search(
 				USER_A, criteria(null, null, null, null, null, 0, 1));
@@ -331,6 +386,17 @@ class JpaFinancialTransactionRepositoryIntegrationTests {
 		assertEquals(expected.get(2).id(), pageTwo.content().getFirst().id());
 		assertEquals(3, pageZero.totalElements());
 		assertEquals(3, pageZero.totalPages());
+	}
+
+	private void setTransactionTimestamps(
+			TransactionId transactionId,
+			Instant createdAt,
+			Instant updatedAt) {
+		jdbcTemplate.update(
+				"UPDATE financial_transaction SET created_at = ?, updated_at = ? WHERE id = ?",
+				OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC),
+				OffsetDateTime.ofInstant(updatedAt, ZoneOffset.UTC),
+				transactionId.value());
 	}
 
 	@Test

@@ -1,5 +1,7 @@
 # TalkTally
 
+English | [Português](README.pt-BR.md)
+
 **A bilingual, voice-first personal finance assistant for recording and understanding everyday money activity.**
 
 [![Backend CI](https://github.com/souzacef/talktally/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/souzacef/talktally/actions/workflows/backend-ci.yml)

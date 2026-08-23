@@ -11,7 +11,7 @@ import { authText } from '@/features/auth/auth-messages'
 import { backendHealthApi } from '@/features/health/backend-health-api'
 
 export const SERVICE_STATUS_POLL_INTERVAL_MS = 2_500
-export const SERVICE_STATUS_STARTUP_WINDOW_MS = 60_000
+export const SERVICE_STATUS_STARTUP_WINDOW_MS = 180_000
 
 export function BackendStatusPage() {
   const { locale } = useLocale()

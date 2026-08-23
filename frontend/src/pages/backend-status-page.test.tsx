@@ -50,7 +50,9 @@ describe('BackendStatusPage', () => {
 
     expect(screen.getByRole('heading', { name: 'TalkTally status' })).toBeInTheDocument()
     expect(screen.getByText('Getting TalkTally ready...')).toBeInTheDocument()
-    expect(screen.getByText(/Free hosting may take up to a minute/)).toBeInTheDocument()
+    expect(screen.getByText(
+      'TalkTally may take a couple of minutes to get ready after a period of inactivity.',
+    )).toBeInTheDocument()
     expect(screen.getByTestId('service-checking-icon')).toHaveClass('animate-spin')
     await flush()
     await flush()
@@ -65,18 +67,18 @@ describe('BackendStatusPage', () => {
     expect(mocks.isUp).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps polling through failures, times out near one minute, and Retry restarts', async () => {
+  it('keeps polling through failures, times out near three minutes, and Retry restarts', async () => {
     mocks.isUp.mockRejectedValue(new Error('internal health detail'))
     renderStatus()
     await flush()
 
-    await act(async () => vi.advanceTimersByTimeAsync(30_000))
+    await act(async () => vi.advanceTimersByTimeAsync(60_000))
     expect(screen.getByText('Getting TalkTally ready...')).toBeInTheDocument()
     expect(screen.queryByText('TalkTally is taking longer than expected.')).not.toBeInTheDocument()
     expect(mocks.isUp.mock.calls.length).toBeGreaterThan(1)
 
     await act(async () => vi.advanceTimersByTimeAsync(
-      SERVICE_STATUS_STARTUP_WINDOW_MS - 30_000,
+      SERVICE_STATUS_STARTUP_WINDOW_MS - 60_000,
     ))
     expect(screen.getByText('TalkTally is taking longer than expected.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
@@ -95,7 +97,9 @@ describe('BackendStatusPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Status do TalkTally' })).toBeInTheDocument()
     expect(screen.getByText('Preparando o TalkTally...')).toBeInTheDocument()
-    expect(screen.getByText(/A hospedagem gratuita pode levar até um minuto/)).toBeInTheDocument()
+    expect(screen.getByText(
+      'O TalkTally pode levar alguns minutos para ficar pronto após um período de inatividade.',
+    )).toBeInTheDocument()
     await flush()
     expect(screen.getByText('O TalkTally está pronto.')).toBeInTheDocument()
   })

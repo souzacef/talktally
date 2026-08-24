@@ -11,6 +11,11 @@
 
 O TalkTally combina fluxos financeiros determinísticos com um assistente de IA restrito. Usuários podem gerenciar receitas, despesas, parcelas e reembolsos por meio de uma interface web responsiva ou de comandos de texto e voz em linguagem natural. A interface está disponível em inglês e português do Brasil.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard-desktop.png" alt="Dashboard do TalkTally exibindo registro por voz, resumos financeiros, fluxo de caixa mensal e acompanhamento de reembolsos" width="100%">
+</p>
+<p align="center"><em>Visão geral do dashboard com registro por voz, relatórios de fluxo de caixa e acompanhamento de reembolsos.</em></p>
+
 ## Demonstração ao vivo
 
 Acesse [talktally.onrender.com](https://talktally.onrender.com). Após um período de inatividade, a aplicação pode levar alguns minutos para ficar pronta. Os recursos de IA dependem da disponibilidade e da cota da API do Google Gemini.
@@ -27,6 +32,35 @@ Acesse [talktally.onrender.com](https://talktally.onrender.com). Após um perío
 - Interface responsiva disponível em inglês e português do Brasil.
 - Histórico limitado do assistente por usuário durante a sessão atual do navegador.
 - Cronogramas oficiais das ocorrências das transações e datas de registro/atualização.
+
+## Tour pelo produto
+
+### Transações e parcelas
+
+![Livro de transações do TalkTally com filtros, registros de reembolso e uma compra parcelada](docs/screenshots/transactions-desktop.png)
+
+*Histórico financeiro pesquisável com registros de reembolso protegidos e cronogramas de parcelas.*
+
+### Reembolsos
+
+![Página A receber do TalkTally mostrando uma solicitação de reembolso parcialmente paga](docs/screenshots/owed-to-me-desktop.png)
+
+*O acompanhamento de pagamentos parciais mantém valores a receber separados da renda.*
+
+### Experiência responsiva e bilíngue
+
+<table>
+  <tr>
+    <th align="center">English</th>
+    <th align="center">Português</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home-mobile-en.jpg" alt="Tela inicial móvel do TalkTally em inglês com registro por voz" width="360"></td>
+    <td align="center"><img src="docs/screenshots/home-mobile-pt-BR.png" alt="Tela inicial móvel do TalkTally em português do Brasil com registro por voz" width="360"></td>
+  </tr>
+</table>
+
+*O mesmo fluxo orientado por voz se adapta a telas móveis e aos dois idiomas disponíveis.*
 
 ## Exemplos de interação
 
@@ -123,10 +157,10 @@ As trocas de texto são mantidas de forma limitada no `sessionStorage`, separada
 
 ## Testes
 
-As suítes padrão contêm atualmente **468 testes**:
+As suítes padrão contêm atualmente **470 testes**:
 
 - **302 testes de backend** para domínio, aplicação, adaptadores de persistência, comportamento HTTP/segurança, ferramentas de IA, voz e configuração;
-- **166 testes de frontend** em 30 arquivos para componentes, hooks, integração de API, navegação, localização, formulários e fluxos de áudio.
+- **168 testes de frontend** em 30 arquivos para componentes, hooks, integração de API, navegação, localização, formulários e fluxos de áudio.
 
 A cobertura adicional e opcional inclui uma suíte real de PostgreSQL/Testcontainers, uma suíte de texto com Google AI ao vivo e uma suíte de voz com Google AI ao vivo. A validação comum de backend e frontend não consome cota do Google.
 

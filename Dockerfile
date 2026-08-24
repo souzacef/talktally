@@ -13,7 +13,7 @@ RUN ./gradlew bootJar --no-daemon
 FROM eclipse-temurin:25-jre AS runtime
 WORKDIR /app
 
-COPY --from=build /workspace/build/libs/talktally-api-0.0.1-SNAPSHOT.jar /app/talktally.jar
+COPY --from=build /workspace/build/libs/talktally-api-*.jar /app/talktally.jar
 
 ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080

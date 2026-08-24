@@ -11,6 +11,11 @@ English | [Português](README.pt-BR.md)
 
 TalkTally combines deterministic financial workflows with a constrained AI assistant. Users can manage income, expenses, installments, and reimbursements through a responsive web interface or natural-language text and voice commands. The UI supports English and Brazilian Portuguese.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard-desktop.png" alt="TalkTally desktop dashboard showing voice capture, financial summaries, monthly cash flow, and reimbursement tracking" width="100%">
+</p>
+<p align="center"><em>Dashboard overview with voice capture, cash-flow reporting, and reimbursement tracking.</em></p>
+
 ## Live demo
 
 Visit [talktally.onrender.com](https://talktally.onrender.com). After a period of inactivity, the application may take a couple of minutes to become ready. AI features depend on Google Gemini API availability and quota.
@@ -27,6 +32,35 @@ Visit [talktally.onrender.com](https://talktally.onrender.com). After a period o
 - Switch the responsive UI between English and Brazilian Portuguese.
 - Keep a bounded, per-user assistant transcript for the current browser session.
 - See authoritative transaction occurrence schedules and recorded/updated timestamps.
+
+## Product tour
+
+### Transactions and installments
+
+![TalkTally transaction ledger with filters, reimbursement entries, and an installment purchase](docs/screenshots/transactions-desktop.png)
+
+*Searchable financial history with protected reimbursement entries and installment schedules.*
+
+### Reimbursements
+
+![TalkTally Owed to Me page showing a partially paid reimbursement claim](docs/screenshots/owed-to-me-desktop.png)
+
+*Partial repayment tracking keeps money owed separate from earned income.*
+
+### Responsive, bilingual experience
+
+<table>
+  <tr>
+    <th align="center">English</th>
+    <th align="center">Português</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home-mobile-en.jpg" alt="TalkTally mobile home screen in English with voice capture" width="360"></td>
+    <td align="center"><img src="docs/screenshots/home-mobile-pt-BR.png" alt="TalkTally mobile home screen in Brazilian Portuguese with voice capture" width="360"></td>
+  </tr>
+</table>
+
+*The same voice-first workflow adapts to mobile screens and both supported languages.*
 
 ## Example interactions
 
@@ -123,10 +157,10 @@ Text exchanges are retained in bounded `sessionStorage`, scoped to the authentic
 
 ## Testing
 
-The default suites currently contain **468 tests**:
+The default suites currently contain **470 tests**:
 
 - **302 backend tests** for domain, application, persistence adapters, HTTP/security behavior, AI tooling, speech, and configuration;
-- **166 frontend tests** across 30 files for components, hooks, API integration, navigation, localization, forms, and audio workflows.
+- **168 frontend tests** across 30 files for components, hooks, API integration, navigation, localization, forms, and audio workflows.
 
 Additional opt-in coverage includes a real PostgreSQL/Testcontainers suite, a live Google AI text suite, and a live Google AI voice suite. Ordinary backend and frontend validation does not consume Google quota.
 

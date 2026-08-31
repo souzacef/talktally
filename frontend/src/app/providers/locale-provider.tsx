@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { formatPluralMessage } from '@/lib/plural'
 
 export const LOCALE_KEY = 'talktally.locale'
 export type AppLocale = 'en-US' | 'pt-BR'
@@ -169,12 +170,28 @@ const messages: Record<AppLocale, Record<MessageKey, string>> = {
 
 const pluralMessages = {
   'en-US': {
+    'dashboard.openClaims': {
+      one: 'Open claim',
+      other: 'Open claims',
+    },
+    'dashboard.people': {
+      one: 'Person',
+      other: 'People',
+    },
     'dashboard.occurrences': {
       one: '{count} occurrence',
       other: '{count} occurrences',
     },
   },
   'pt-BR': {
+    'dashboard.openClaims': {
+      one: 'Cobrança aberta',
+      other: 'Cobranças abertas',
+    },
+    'dashboard.people': {
+      one: 'Pessoa',
+      other: 'Pessoas',
+    },
     'dashboard.occurrences': {
       one: '{count} ocorrência',
       other: '{count} ocorrências',
@@ -238,7 +255,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       year: 'numeric',
       timeZone: 'UTC',
     })
-    const pluralRules = new Intl.PluralRules(locale)
 
     return {
       locale,
@@ -247,10 +263,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         setLocaleState(nextLocale)
       },
       t: (key, params) => interpolate(messages[locale][key], params),
-      plural: (key, count) => {
-        const form = pluralRules.select(count) === 'one' ? 'one' : 'other'
-        return interpolate(pluralMessages[locale][key][form], { count })
-      },
+      plural: (key, count) => formatPluralMessage(
+        locale,
+        count,
+        pluralMessages[locale][key],
+      ),
       formatMoney: (amount) => money.format(Number(amount)),
       formatDate: (date, options = {}) => new Intl.DateTimeFormat(locale, {
         year: 'numeric',

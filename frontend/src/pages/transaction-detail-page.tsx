@@ -22,6 +22,7 @@ import { useCategories } from '@/features/categories/hooks/use-categories'
 import { transactionApi } from '@/features/transactions/api/transaction-api'
 import { TransactionForm } from '@/features/transactions/components/transaction-form'
 import {
+  transactionCountText,
   transactionKindLabel,
   transactionSourceLabel,
   transactionText,
@@ -140,7 +141,7 @@ export function TransactionDetailPage() {
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <KindBadge kind={transaction.kind} label={transactionKindLabel(transaction.kind, locale)} />
-              {transaction.installmentCount > 1 && <span className="rounded-full bg-muted px-2.5 py-1 text-[0.68rem] font-semibold text-muted-foreground">{transactionText(locale, 'installments', { count: transaction.installmentCount })}</span>}
+              {transaction.installmentCount > 1 && <span className="rounded-full bg-muted px-2.5 py-1 text-[0.68rem] font-semibold text-muted-foreground">{transactionCountText(locale, 'installments', transaction.installmentCount)}</span>}
             </div>
             <h1 className="font-heading text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">{transaction.description}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{categoryName}</p>

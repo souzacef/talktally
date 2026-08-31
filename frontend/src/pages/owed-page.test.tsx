@@ -130,6 +130,65 @@ describe('OwedPage localization', () => {
     mocks.recordPayment.mockResolvedValue({})
   })
 
+  it.each([
+    ['en-US', 0, 'Open claims', 'People'],
+    ['en-US', 1, 'Open claim', 'Person'],
+    ['en-US', 2, 'Open claims', 'People'],
+    ['pt-BR', 0, 'Cobranças abertas', 'Pessoas'],
+    ['pt-BR', 1, 'Cobrança aberta', 'Pessoa'],
+    ['pt-BR', 2, 'Cobranças abertas', 'Pessoas'],
+  ] as const)(
+    'pluralizes summary count labels in %s for %i',
+    async (locale, count, openClaimsLabel, peopleLabel) => {
+      mocks.summary.mockReturnValue({
+        isPending: false,
+        error: null,
+        data: { owedToMe: { outstanding: '80.50', openClaims: count } },
+      })
+      mocks.peopleList.mockResolvedValue(Array.from({ length: count }, (_, index) => ({
+        id: `person-${index}`,
+        displayName: `Person ${index}`,
+      })))
+
+      renderOwed(locale)
+
+      const openClaims = screen.getByText(openClaimsLabel)
+      expect(openClaims.previousElementSibling).toHaveTextContent(String(count))
+      await waitFor(() => {
+        const people = screen.getAllByText(peopleLabel).find(
+          (element) => element.previousElementSibling?.textContent === String(count),
+        )
+        expect(people).toBeDefined()
+      })
+    },
+  )
+
+  it.each([
+    ['en-US', 0, '0 open claims'],
+    ['en-US', 1, '1 open claim'],
+    ['en-US', 2, '2 open claims'],
+    ['pt-BR', 0, '0 cobranças abertas'],
+    ['pt-BR', 1, '1 cobrança aberta'],
+    ['pt-BR', 2, '2 cobranças abertas'],
+  ] as const)(
+    'pluralizes each person open-claim summary in %s for %i',
+    async (locale, count, expected) => {
+      mocks.personSummary.mockResolvedValue({
+        personId: 'ana-id',
+        displayName: 'Ana Silva',
+        totalOriginal: '100.00',
+        totalReimbursed: '19.50',
+        totalOutstanding: '80.50',
+        currency: 'BRL',
+        openClaimCount: count,
+      })
+
+      renderOwed(locale)
+
+      expect(await screen.findByText(expected)).toBeInTheDocument()
+    },
+  )
+
   it('distinguishes the authoritative source expense from the amount originally owed', async () => {
     renderOwed()
 

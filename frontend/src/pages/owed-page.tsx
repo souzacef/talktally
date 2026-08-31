@@ -15,6 +15,7 @@ import { useFinancialSummary } from '@/features/dashboard/hooks/use-dashboard'
 import { peopleApi } from '@/features/reimbursements/api/people-api'
 import { reimbursementApi } from '@/features/reimbursements/api/reimbursement-api'
 import {
+  reimbursementCountText,
   reimbursementStatusLabel,
   reimbursementText,
 } from '@/features/reimbursements/reimbursement-messages'
@@ -115,11 +116,11 @@ export function OwedPage() {
           </div>
           <div className="border-t border-white/15 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
             <p className="font-heading text-3xl font-semibold">{summary.data?.owedToMe.openClaims ?? '—'}</p>
-            <p className="mt-1 text-sm opacity-70">{text('openClaims')}</p>
+            <p className="mt-1 text-sm opacity-70">{summary.data ? reimbursementCountText(locale, 'openClaims', summary.data.owedToMe.openClaims) : text('openClaims')}</p>
           </div>
           <div className="border-t border-white/15 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
             <p className="font-heading text-3xl font-semibold">{people.data?.length ?? '—'}</p>
-            <p className="mt-1 text-sm opacity-70">{text('people')}</p>
+            <p className="mt-1 text-sm opacity-70">{people.data ? reimbursementCountText(locale, 'people', people.data.length) : text('people')}</p>
           </div>
         </CardContent>
       </Card>
@@ -137,7 +138,7 @@ export function OwedPage() {
                 <article key={person.id} className="rounded-2xl border bg-muted/25 p-4">
                   <div className="flex items-center gap-3">
                     <span className="grid size-11 place-items-center rounded-full bg-reimbursement-soft font-heading font-semibold text-reimbursement">{initials(person.displayName)}</span>
-                    <div className="min-w-0"><h2 className="truncate font-heading font-semibold">{person.displayName}</h2><p className="text-xs text-muted-foreground">{text('openClaimsCount', { count: personSummary.data?.openClaimCount ?? '—' })}</p></div>
+                    <div className="min-w-0"><h2 className="truncate font-heading font-semibold">{person.displayName}</h2><p className="text-xs text-muted-foreground">{personSummary.data ? reimbursementCountText(locale, 'openClaimsCount', personSummary.data.openClaimCount) : '—'}</p></div>
                   </div>
                   <p className="tabular-nums mt-5 font-heading text-xl font-semibold text-reimbursement">
                     {personSummary.data ? formatMoney(personSummary.data.totalOutstanding) : '—'}
@@ -172,7 +173,7 @@ export function OwedPage() {
                   <h3 className="mt-1 font-heading text-lg font-semibold">{claim.sourceExpense.description}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {categories.isPending ? text('loadingCategory') : categoryLabelForId(categories.data, claim.sourceExpense.categoryId, locale)} · {formatDate(claim.sourceExpense.eventDate)}
-                    {claim.sourceExpense.installmentCount > 1 && ` · ${text('installments', { count: claim.sourceExpense.installmentCount })}`}
+                    {claim.sourceExpense.installmentCount > 1 && ` · ${reimbursementCountText(locale, 'installments', claim.sourceExpense.installmentCount)}`}
                   </p>
                   {claim.sourceExpense.firstOccurrenceDate !== claim.sourceExpense.eventDate && (
                     <p className="mt-1 text-xs text-muted-foreground">{text('firstCashFlowDate', { date: formatDate(claim.sourceExpense.firstOccurrenceDate) })}</p>

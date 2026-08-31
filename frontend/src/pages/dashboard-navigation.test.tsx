@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   categoryList: vi.fn(),
   peopleList: vi.fn(),
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
+  voiceStartRecording: vi.fn(),
+  speechPlaybackPrime: vi.fn(),
+  speechPlaybackAudioUrl: null as string | null,
   voiceError: null as Error | null,
 }))
 
@@ -60,12 +63,19 @@ vi.mock('@/features/assistant/hooks/use-voice-assistant', async () => {
         state: 'idle',
         isRecording: false,
         isProcessing: false,
-        startRecording: vi.fn(),
+        startRecording: mocks.voiceStartRecording,
         stopRecording: vi.fn(),
       }
     },
   }
 })
+
+vi.mock('@/lib/audio/use-speech-playback', () => ({
+  useSpeechPlayback: (audioUrl: string | null) => {
+    mocks.speechPlaybackAudioUrl = audioUrl
+    return { prime: mocks.speechPlaybackPrime }
+  },
+}))
 
 const recentTransaction: TransactionResponse = {
   id: 'recent-transaction-id',
@@ -119,6 +129,9 @@ describe('Dashboard Recent Activity navigation', () => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn() })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
     mocks.voiceResultHandler = undefined
+    mocks.voiceStartRecording.mockReset()
+    mocks.speechPlaybackPrime.mockReset()
+    mocks.speechPlaybackAudioUrl = null
     mocks.voiceError = null
     mocks.summary.mockReturnValue({
       isPending: false,
@@ -167,6 +180,20 @@ describe('Dashboard Recent Activity navigation', () => {
     renderDashboard()
 
     expect(screen.getByRole('heading', { name: 'Hello, Carlos!' })).toBeInTheDocument()
+  })
+
+  it('primes speech playback synchronously before starting Dashboard recording', async () => {
+    const order: string[] = []
+    mocks.speechPlaybackPrime.mockImplementation(() => order.push('prime'))
+    mocks.voiceStartRecording.mockImplementation(() => {
+      order.push('start-recording')
+      return Promise.resolve()
+    })
+    const { user } = renderDashboard()
+
+    await user.click(screen.getByRole('button', { name: 'Start microphone recording' }))
+
+    expect(order).toEqual(['prime', 'start-recording'])
   })
 
   it('shows the friendly category and navigates a recent transaction to detail', async () => {
@@ -331,7 +358,7 @@ describe('Dashboard Recent Activity navigation', () => {
     expect(document.querySelector('audio')).toBeNull()
   })
 
-  it('plays generated Home audio and revokes object URLs on replacement and unmount', () => {
+  it('hands generated Home audio to autoplay and revokes object URLs on replacement and unmount', () => {
     vi.mocked(URL.createObjectURL)
       .mockReturnValueOnce('blob:first-voice-reply')
       .mockReturnValueOnce('blob:second-voice-reply')
@@ -347,6 +374,7 @@ describe('Dashboard Recent Activity navigation', () => {
 
     expect(screen.getByText('Voice reply')).toBeInTheDocument()
     expect(document.querySelector('audio')).toHaveAttribute('src', 'blob:first-voice-reply')
+    expect(mocks.speechPlaybackAudioUrl).toBe('blob:first-voice-reply')
     expect(screen.getByText('Heard: First question')).toBeInTheDocument()
 
     act(() => mocks.voiceResultHandler?.({
@@ -359,6 +387,7 @@ describe('Dashboard Recent Activity navigation', () => {
 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-voice-reply')
     expect(document.querySelector('audio')).toHaveAttribute('src', 'blob:second-voice-reply')
+    expect(mocks.speechPlaybackAudioUrl).toBe('blob:second-voice-reply')
 
     unmount()
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:second-voice-reply')

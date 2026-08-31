@@ -26,6 +26,7 @@ import {
 import { useVoiceAssistant } from '@/features/assistant/hooks/use-voice-assistant'
 import { useAuth } from '@/features/auth/auth-provider'
 import { createAudioObjectUrl } from '@/lib/audio/base64-audio'
+import { useSpeechPlayback } from '@/lib/audio/use-speech-playback'
 import { cn } from '@/lib/utils'
 import type { AssistantStatus, VoiceAssistantResponse } from '@/types/api'
 
@@ -93,6 +94,9 @@ function AuthenticatedAssistantPage({
     tooShortMessage: text('recordingTooShort'),
     requestErrorMessage: (error) => assistantErrorText(locale, error),
   })
+  const { prime: primeSpeechPlayback } = useSpeechPlayback(
+    voice.result?.speechStatus === 'GENERATED' ? audioUrl : null,
+  )
   const textMutation = useMutation({ mutationFn: (submitted: string) => assistantApi.sendMessage(submitted) })
 
   useEffect(() => {
@@ -127,7 +131,10 @@ function AuthenticatedAssistantPage({
 
   function toggleVoice() {
     if (voice.isRecording) voice.stopRecording()
-    else void voice.startRecording()
+    else {
+      primeSpeechPlayback()
+      void voice.startRecording()
+    }
   }
 
   const textError = textMutation.error

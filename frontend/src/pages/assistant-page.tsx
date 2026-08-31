@@ -18,10 +18,13 @@ import {
   assistantConversationStorage,
   type StoredAssistantConversationEntry,
 } from '@/features/assistant/assistant-conversation-storage'
-import { assistantStatusLabel, assistantText } from '@/features/assistant/assistant-messages'
+import {
+  assistantErrorText,
+  assistantStatusLabel,
+  assistantText,
+} from '@/features/assistant/assistant-messages'
 import { useVoiceAssistant } from '@/features/assistant/hooks/use-voice-assistant'
 import { useAuth } from '@/features/auth/auth-provider'
-import { ApiError } from '@/lib/api/api-client'
 import { createAudioObjectUrl } from '@/lib/audio/base64-audio'
 import { cn } from '@/lib/utils'
 import type { AssistantStatus, VoiceAssistantResponse } from '@/types/api'
@@ -88,6 +91,7 @@ function AuthenticatedAssistantPage({
   const voice = useVoiceAssistant(appendVoiceResult, {
     noSpeechMessage: text('noSpeechDetected'),
     tooShortMessage: text('recordingTooShort'),
+    requestErrorMessage: (error) => assistantErrorText(locale, error),
   })
   const textMutation = useMutation({ mutationFn: (submitted: string) => assistantApi.sendMessage(submitted) })
 
@@ -126,9 +130,9 @@ function AuthenticatedAssistantPage({
     else void voice.startRecording()
   }
 
-  const textError = textMutation.error instanceof ApiError
-    ? textMutation.error.message
-    : textMutation.error ? text('requestFailed') : null
+  const textError = textMutation.error
+    ? assistantErrorText(locale, textMutation.error)
+    : null
 
   const speechProps = {
     unavailableLabel: text('voiceUnavailable'),

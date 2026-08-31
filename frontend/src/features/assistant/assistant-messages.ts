@@ -1,4 +1,5 @@
 import type { AppLocale } from '@/app/providers/locale-provider'
+import { ApiError } from '@/lib/api/api-client'
 import type { AssistantStatus } from '@/types/api'
 
 const enUS = {
@@ -21,6 +22,12 @@ const enUS = {
   tapToSpeak: 'Tap to speak',
   recordingLimit: 'Recording stops automatically when needed.',
   requestFailed: 'Assistant request failed',
+  rateLimited: 'You’re sending requests a little too quickly. Wait a moment and try again.',
+  assistantUnavailable: 'The assistant is temporarily unavailable. Please try again shortly.',
+  speechRecognitionUnavailable: 'Voice recognition is temporarily unavailable. Try again shortly or type your message instead.',
+  audioTooLarge: 'That recording is too large. Try a shorter recording.',
+  invalidAudio: 'That recording could not be processed. Try recording again.',
+  invalidTranscript: 'We couldn’t understand that voice command. Try recording again or type your message.',
   completed: 'Completed',
   needsClarification: 'Needs clarification',
   voiceUnavailable: 'Voice reply unavailable. The result still succeeded.',
@@ -61,6 +68,12 @@ const ptBR: Record<AssistantMessageKey, string> = {
   tapToSpeak: 'Toque para falar',
   recordingLimit: 'A gravação para automaticamente quando necessário.',
   requestFailed: 'Falha na solicitação ao assistente',
+  rateLimited: 'Você está enviando solicitações rápido demais. Aguarde um momento e tente novamente.',
+  assistantUnavailable: 'O assistente está temporariamente indisponível. Tente novamente em instantes.',
+  speechRecognitionUnavailable: 'O reconhecimento de voz está temporariamente indisponível. Tente novamente em instantes ou digite sua mensagem.',
+  audioTooLarge: 'Essa gravação é grande demais. Tente uma gravação mais curta.',
+  invalidAudio: 'Não foi possível processar essa gravação. Tente gravar novamente.',
+  invalidTranscript: 'Não conseguimos entender esse comando de voz. Tente gravar novamente ou digite sua mensagem.',
   completed: 'Concluído',
   needsClarification: 'Precisa de esclarecimento',
   voiceUnavailable: 'Resposta por voz indisponível. O resultado foi concluído mesmo assim.',
@@ -86,6 +99,28 @@ const messages: Record<AppLocale, Record<AssistantMessageKey, string>> = {
 
 export function assistantText(locale: AppLocale, key: AssistantMessageKey): string {
   return messages[locale][key]
+}
+
+const assistantApiErrorMessageKeys = {
+  RATE_LIMITED: 'rateLimited',
+  ASSISTANT_UNAVAILABLE: 'assistantUnavailable',
+  SPEECH_RECOGNITION_UNAVAILABLE: 'speechRecognitionUnavailable',
+  AUDIO_TOO_LARGE: 'audioTooLarge',
+  INVALID_AUDIO: 'invalidAudio',
+  INVALID_TRANSCRIPT: 'invalidTranscript',
+} as const satisfies Record<string, AssistantMessageKey>
+
+function isAssistantApiErrorCode(
+  code: string,
+): code is keyof typeof assistantApiErrorMessageKeys {
+  return Object.prototype.hasOwnProperty.call(assistantApiErrorMessageKeys, code)
+}
+
+export function assistantErrorText(locale: AppLocale, error: unknown): string {
+  if (!(error instanceof ApiError) || !isAssistantApiErrorCode(error.code)) {
+    return assistantText(locale, 'requestFailed')
+  }
+  return assistantText(locale, assistantApiErrorMessageKeys[error.code])
 }
 
 export function assistantStatusLabel(status: AssistantStatus, locale: AppLocale): string {

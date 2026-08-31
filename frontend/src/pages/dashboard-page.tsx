@@ -20,7 +20,10 @@ import {
   AssistantConversationStorage,
   assistantConversationStorage,
 } from '@/features/assistant/assistant-conversation-storage'
-import { assistantText } from '@/features/assistant/assistant-messages'
+import {
+  assistantErrorText,
+  assistantText,
+} from '@/features/assistant/assistant-messages'
 import {
   useCategoryBreakdown,
   useFinancialSummary,
@@ -75,6 +78,7 @@ export function DashboardPage({
   const voice = useVoiceAssistant(appendVoiceResult, {
     noSpeechMessage: assistantText(locale, 'noSpeechDetected'),
     tooShortMessage: assistantText(locale, 'recordingTooShort'),
+    requestErrorMessage: (error) => assistantErrorText(locale, error),
   })
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const userFirstName = firstName(user?.displayName)

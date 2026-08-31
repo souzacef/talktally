@@ -12,6 +12,7 @@ import {
   assistantConversationStorage,
   assistantConversationStorageKey,
 } from '@/features/assistant/assistant-conversation-storage'
+import { ApiError } from '@/lib/api/api-client'
 import type { TransactionResponse, VoiceAssistantResponse } from '@/types/api'
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   categoryList: vi.fn(),
   peopleList: vi.fn(),
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
+  voiceError: null as Error | null,
 }))
 
 vi.mock('@/features/dashboard/hooks/use-dashboard', () => ({
@@ -41,7 +43,10 @@ vi.mock('@/features/reimbursements/api/people-api', () => ({
 vi.mock('@/features/assistant/hooks/use-voice-assistant', async () => {
   const { useState } = await import('react')
   return {
-    useVoiceAssistant: (onResult?: (result: VoiceAssistantResponse) => void) => {
+    useVoiceAssistant: (
+      onResult?: (result: VoiceAssistantResponse) => void,
+      options: { requestErrorMessage?: (error: unknown) => string } = {},
+    ) => {
       const [result, setResult] = useState<VoiceAssistantResponse | null>(null)
       mocks.voiceResultHandler = (nextResult) => {
         onResult?.(nextResult)
@@ -49,7 +54,9 @@ vi.mock('@/features/assistant/hooks/use-voice-assistant', async () => {
       }
       return {
         result,
-        error: null,
+        error: mocks.voiceError
+          ? options.requestErrorMessage?.(mocks.voiceError) ?? null
+          : null,
         state: 'idle',
         isRecording: false,
         isProcessing: false,
@@ -112,6 +119,7 @@ describe('Dashboard Recent Activity navigation', () => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn() })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
     mocks.voiceResultHandler = undefined
+    mocks.voiceError = null
     mocks.summary.mockReturnValue({
       isPending: false,
       error: null,
@@ -354,5 +362,19 @@ describe('Dashboard Recent Activity navigation', () => {
 
     unmount()
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:second-voice-reply')
+  })
+
+  it('uses localized product copy for Home voice request failures', () => {
+    window.localStorage.setItem(LOCALE_KEY, 'pt-BR')
+    mocks.voiceError = new ApiError(
+      429,
+      'RATE_LIMITED',
+      'too many requests',
+    )
+
+    renderDashboard()
+
+    expect(screen.getByText('Você está enviando solicitações rápido demais. Aguarde um momento e tente novamente.')).toBeInTheDocument()
+    expect(screen.queryByText('too many requests')).not.toBeInTheDocument()
   })
 })

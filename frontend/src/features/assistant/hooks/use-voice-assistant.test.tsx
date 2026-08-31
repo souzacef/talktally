@@ -8,6 +8,7 @@ import {
   MINIMUM_MANUAL_RECORDING_MS,
   useVoiceAssistant,
 } from '@/features/assistant/hooks/use-voice-assistant'
+import { ApiError } from '@/lib/api/api-client'
 
 const mocks = vi.hoisted(() => ({ sendVoice: vi.fn() }))
 
@@ -36,6 +37,9 @@ function renderVoice(recorder: TestRecorder, onResult = vi.fn()) {
     },
     noSpeechMessage: 'localized no speech',
     tooShortMessage: 'localized too short',
+    requestErrorMessage: (error) => error instanceof ApiError
+      ? `localized ${error.code}`
+      : 'localized request failure',
   }), {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -135,6 +139,24 @@ describe('useVoiceAssistant capture lifecycle', () => {
 
     expect(recorder.stop).toHaveBeenCalledTimes(1)
     expect(mocks.sendVoice).toHaveBeenCalledTimes(1)
+  })
+
+  it('presents voice API failures through the supplied localized formatter', async () => {
+    mocks.sendVoice.mockRejectedValueOnce(new ApiError(
+      503,
+      'SPEECH_RECOGNITION_UNAVAILABLE',
+      'speech recognition is temporarily unavailable',
+    ))
+    const recorder = new TestRecorder()
+    const { result } = renderVoice(recorder)
+    await start(result)
+    act(() => recorder.signalActivity())
+
+    await act(async () => vi.advanceTimersByTimeAsync(END_OF_SPEECH_SILENCE_MS))
+
+    expect(result.current.state).toBe('error')
+    expect(result.current.error).toBe('localized SPEECH_RECOGNITION_UNAVAILABLE')
+    expect(result.current.error).not.toContain('speech recognition is temporarily unavailable')
   })
 
   it('clears a completed result only when the user starts another recording', async () => {

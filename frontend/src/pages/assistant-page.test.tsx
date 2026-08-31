@@ -9,6 +9,7 @@ import {
 } from '@/features/assistant/assistant-conversation-storage'
 import type { AuthService } from '@/features/auth/api/auth-api'
 import { AuthProvider } from '@/features/auth/auth-provider'
+import { ApiError } from '@/lib/api/api-client'
 import { AuthSession } from '@/lib/auth/auth-session'
 import { AssistantPage } from '@/pages/assistant-page'
 import type { UserAccountResponse, VoiceAssistantResponse } from '@/types/api'
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
   voiceResult: null as VoiceAssistantResponse | null,
+  voiceError: null as Error | null,
 }))
 
 vi.mock('@/features/assistant/api/assistant-api', () => ({
@@ -26,11 +28,16 @@ vi.mock('@/features/assistant/api/assistant-api', () => ({
 }))
 
 vi.mock('@/features/assistant/hooks/use-voice-assistant', () => ({
-  useVoiceAssistant: (onResult?: (result: VoiceAssistantResponse) => void) => {
+  useVoiceAssistant: (
+    onResult?: (result: VoiceAssistantResponse) => void,
+    options: { requestErrorMessage?: (error: unknown) => string } = {},
+  ) => {
     mocks.voiceResultHandler = onResult
     return {
       result: mocks.voiceResult,
-      error: null,
+      error: mocks.voiceError
+        ? options.requestErrorMessage?.(mocks.voiceError) ?? null
+        : null,
       state: 'idle',
       isRecording: false,
       isProcessing: false,
@@ -88,7 +95,10 @@ async function sendText(message: string) {
 describe('AssistantPage session conversation', () => {
   beforeEach(() => {
     window.localStorage.setItem('talktally.locale', 'en-US')
+    mocks.sendMessage.mockReset()
+    mocks.voiceResultHandler = undefined
     mocks.voiceResult = null
+    mocks.voiceError = null
   })
 
   it('restores ordered text messages and status after route unmount and remount', async () => {
@@ -259,5 +269,44 @@ describe('AssistantPage session conversation', () => {
     expect(entries[1]?.querySelector('li strong')).toHaveTextContent('Food and dining')
     expect(entries[1]).not.toHaveTextContent('**')
     expect(entries[1]?.querySelector('p ul')).toBeNull()
+  })
+
+  it.each([
+    [
+      429,
+      'RATE_LIMITED',
+      'too many requests',
+      'You’re sending requests a little too quickly. Wait a moment and try again.',
+    ],
+    [
+      503,
+      'ASSISTANT_UNAVAILABLE',
+      'assistant is temporarily unavailable',
+      'The assistant is temporarily unavailable. Please try again shortly.',
+    ],
+  ] as const)(
+    'uses localized product copy for text Assistant %s %s failures',
+    async (status, code, backendMessage, expected) => {
+      mocks.sendMessage.mockRejectedValueOnce(new ApiError(status, code, backendMessage))
+      renderAssistant()
+
+      await sendText('Test failure handling')
+
+      expect(await screen.findByText(expected)).toBeInTheDocument()
+      expect(screen.queryByText(backendMessage)).not.toBeInTheDocument()
+    },
+  )
+
+  it('uses the shared localized presentation for voice request failures', () => {
+    mocks.voiceError = new ApiError(
+      503,
+      'SPEECH_RECOGNITION_UNAVAILABLE',
+      'speech recognition is temporarily unavailable',
+    )
+
+    renderAssistant()
+
+    expect(screen.getAllByText('Voice recognition is temporarily unavailable. Try again shortly or type your message instead.').length).toBeGreaterThan(0)
+    expect(screen.queryByText('speech recognition is temporarily unavailable')).not.toBeInTheDocument()
   })
 })

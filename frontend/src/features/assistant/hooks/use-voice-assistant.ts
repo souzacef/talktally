@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { assistantApi } from '@/features/assistant/api/assistant-api'
-import { ApiError } from '@/lib/api/api-client'
 import { WavMicrophoneRecorder } from '@/lib/audio/wav-recorder'
 import type { VoiceAssistantResponse } from '@/types/api'
 
@@ -19,6 +18,7 @@ interface VoiceRecorder {
 interface VoiceCaptureOptions {
   noSpeechMessage?: string
   tooShortMessage?: string
+  requestErrorMessage?: (error: unknown) => string
   recorderFactory?: (onSpeechActivity: () => void) => VoiceRecorder
 }
 
@@ -65,13 +65,17 @@ export function useVoiceAssistant(
     recorderRef.current = null
     clearCaptureTimers()
     setRecording(false)
+    let wav: Blob
     try {
-      const wav = await recorder.stop()
-      await mutation.mutateAsync(wav)
+      wav = await recorder.stop()
     } catch (error) {
-      setRecordingError(error instanceof ApiError || error instanceof Error
-        ? error.message
-        : 'Voice request failed')
+      setRecordingError(error instanceof Error ? error.message : 'Voice request failed')
+      return
+    }
+    try {
+      await mutation.mutateAsync(wav)
+    } catch {
+      // The mutation retains request failures for localized presentation.
     }
   }
 
@@ -168,7 +172,11 @@ export function useVoiceAssistant(
 
   return {
     result: mutation.data,
-    error: recordingError ?? (mutation.error instanceof ApiError ? mutation.error.message : null),
+    error: recordingError ?? (
+      mutation.error
+        ? options.requestErrorMessage?.(mutation.error) ?? 'Voice request failed'
+        : null
+    ),
     state,
     isRecording: recording,
     isProcessing: mutation.isPending,

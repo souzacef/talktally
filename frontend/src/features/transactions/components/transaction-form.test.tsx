@@ -33,6 +33,23 @@ const existingTransaction: TransactionResponse = {
   ],
 }
 
+const existingIncomeTransaction: TransactionResponse = {
+  ...existingTransaction,
+  id: 'income-transaction',
+  kind: 'INCOME',
+  description: 'Salary',
+  categoryId: 'income',
+  eventDate: '2026-08-31',
+  firstOccurrenceDate: '2026-09-15',
+  installmentCount: 4,
+  occurrences: [
+    { sequenceNumber: 1, effectiveDate: '2026-09-15', amount: '25.00', currency: 'BRL' },
+    { sequenceNumber: 2, effectiveDate: '2026-10-15', amount: '25.00', currency: 'BRL' },
+    { sequenceNumber: 3, effectiveDate: '2026-11-15', amount: '25.00', currency: 'BRL' },
+    { sequenceNumber: 4, effectiveDate: '2026-12-15', amount: '25.00', currency: 'BRL' },
+  ],
+}
+
 function renderForm(onSubmit = vi.fn(), initialTransaction?: TransactionResponse) {
   render(
     <LocaleProvider>
@@ -58,12 +75,97 @@ function optionNames(select: HTMLElement): string[] {
 describe('TransactionForm', () => {
   it('initializes a new first cash-flow date to the current event date', () => {
     renderForm()
+    expect(screen.getByLabelText('Kind')).toHaveValue('EXPENSE')
     const eventDate = screen.getByLabelText('Event date')
     const firstOccurrenceDate = screen.getByLabelText('First cash-flow date')
     expect(eventDate).not.toHaveValue('')
     expect(firstOccurrenceDate).toHaveValue((eventDate as HTMLInputElement).value)
+    expect(screen.getByLabelText('Installments')).toHaveValue(1)
     expect(eventDate).toHaveAccessibleDescription('When the transaction happened.')
     expect(firstOccurrenceDate).toHaveAccessibleDescription('When this transaction first affects your cash flow.')
+  })
+
+  it('hides expense scheduling fields when switching to income', async () => {
+    const { user } = renderForm()
+
+    await user.selectOptions(screen.getByLabelText('Kind'), 'INCOME')
+
+    expect(screen.queryByLabelText('First cash-flow date')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Installments')).not.toBeInTheDocument()
+  })
+
+  it('restores clean scheduling defaults after an expense to income to expense transition', async () => {
+    const { user } = renderForm()
+    fireEvent.change(screen.getByLabelText('Event date'), { target: { value: '2026-08-19' } })
+    fireEvent.change(screen.getByLabelText('First cash-flow date'), {
+      target: { value: '2026-09-10' },
+    })
+    fireEvent.change(screen.getByLabelText('Installments'), { target: { value: '3' } })
+
+    await user.selectOptions(screen.getByLabelText('Kind'), 'INCOME')
+    fireEvent.change(screen.getByLabelText('Event date'), { target: { value: '2026-08-25' } })
+    await user.selectOptions(screen.getByLabelText('Kind'), 'EXPENSE')
+
+    expect(screen.getByLabelText('First cash-flow date')).toHaveValue('2026-08-25')
+    expect(screen.getByLabelText('Installments')).toHaveValue(1)
+
+    fireEvent.change(screen.getByLabelText('Event date'), { target: { value: '2026-08-26' } })
+    expect(screen.getByLabelText('First cash-flow date')).toHaveValue('2026-08-26')
+  })
+
+  it('submits income with the event date as its single occurrence', async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderForm(onSubmit)
+    await user.type(screen.getByLabelText('Description'), 'Salary')
+    await user.type(screen.getByLabelText('Amount'), '100.00')
+    await user.selectOptions(screen.getByLabelText('Kind'), 'INCOME')
+    await user.selectOptions(screen.getByLabelText('Category'), 'income')
+    fireEvent.change(screen.getByLabelText('Event date'), { target: { value: '2026-08-31' } })
+
+    await user.click(screen.getByRole('button', { name: 'Create transaction' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      kind: 'INCOME',
+      description: 'Salary',
+      amount: '100.00',
+      categoryId: 'income',
+      eventDate: '2026-08-31',
+      firstOccurrenceDate: '2026-08-31',
+      installmentCount: 1,
+    })
+  })
+
+  it('does not let an invalid hidden expense schedule block income submission', async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderForm(onSubmit)
+    fireEvent.change(screen.getByLabelText('Installments'), { target: { value: '121' } })
+    await user.selectOptions(screen.getByLabelText('Kind'), 'INCOME')
+    await user.type(screen.getByLabelText('Description'), 'Bonus')
+    await user.type(screen.getByLabelText('Amount'), '50.00')
+    await user.selectOptions(screen.getByLabelText('Category'), 'income')
+
+    await user.click(screen.getByRole('button', { name: 'Create transaction' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'INCOME',
+      firstOccurrenceDate: (screen.getByLabelText('Event date') as HTMLInputElement).value,
+      installmentCount: 1,
+    }))
+    expect(screen.queryByText('Installment count must be between 1 and 120.')).not.toBeInTheDocument()
+  })
+
+  it('continues to validate the visible expense installment range', async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderForm(onSubmit)
+    await user.type(screen.getByLabelText('Description'), 'Laptop')
+    await user.type(screen.getByLabelText('Amount'), '100.00')
+    await user.selectOptions(screen.getByLabelText('Category'), 'expense')
+    fireEvent.change(screen.getByLabelText('Installments'), { target: { value: '121' } })
+
+    await user.click(screen.getByRole('button', { name: 'Create transaction' }))
+
+    expect(screen.getByText('Installment count must be between 1 and 120.')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('keeps the first cash-flow date synchronized until it is independently changed', () => {
@@ -92,6 +194,27 @@ describe('TransactionForm', () => {
     expect(screen.getByLabelText('First cash-flow date')).toHaveValue('2026-09-10')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(onSubmit).toHaveBeenCalledWith({ kind: 'EXPENSE', description: 'Laptop', amount: '100.00', categoryId: 'expense', eventDate: '2026-08-19', firstOccurrenceDate: '2026-09-10', installmentCount: 3 })
+  })
+
+  it('hides and normalizes stale scheduling data when editing income', async () => {
+    const onSubmit = vi.fn()
+    const { user } = renderForm(onSubmit, existingIncomeTransaction)
+
+    expect(screen.getByLabelText('Kind')).toHaveValue('INCOME')
+    expect(screen.queryByLabelText('First cash-flow date')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Installments')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      kind: 'INCOME',
+      description: 'Salary',
+      amount: '100.00',
+      categoryId: 'income',
+      eventDate: '2026-08-31',
+      firstOccurrenceDate: '2026-08-31',
+      installmentCount: 1,
+    })
   })
 
   it('shows EXPENSE and ANY categories only for an expense', () => {

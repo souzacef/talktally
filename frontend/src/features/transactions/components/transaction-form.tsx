@@ -72,14 +72,19 @@ function amountInCents(amount: string): bigint | null {
 
 function initialValues(transaction?: TransactionResponse): FormValues {
   const eventDate = transaction?.eventDate ?? new Date().toISOString().slice(0, 10)
+  const kind = transaction?.kind === 'INCOME' ? 'INCOME' : 'EXPENSE'
   return {
-    kind: transaction?.kind === 'INCOME' ? 'INCOME' : 'EXPENSE',
+    kind,
     description: transaction?.description ?? '',
     amount: transaction ? String(transaction.amount) : '',
     categoryId: transaction?.categoryId ?? '',
     eventDate,
-    firstOccurrenceDate: transaction?.firstOccurrenceDate ?? eventDate,
-    installmentCount: String(transaction?.installmentCount ?? 1),
+    firstOccurrenceDate: kind === 'INCOME'
+      ? eventDate
+      : transaction?.firstOccurrenceDate ?? eventDate,
+    installmentCount: kind === 'INCOME'
+      ? '1'
+      : String(transaction?.installmentCount ?? 1),
   }
 }
 
@@ -94,9 +99,11 @@ function validationError(
     return transactionText(locale, 'formAmountInvalid')
   }
   if (!values.eventDate) return transactionText(locale, 'formEventDateRequired')
-  const installments = Number(values.installmentCount)
-  if (!Number.isInteger(installments) || installments < 1 || installments > 120) {
-    return transactionText(locale, 'formInstallmentsInvalid')
+  if (values.kind === 'EXPENSE') {
+    const installments = Number(values.installmentCount)
+    if (!Number.isInteger(installments) || installments < 1 || installments > 120) {
+      return transactionText(locale, 'formInstallmentsInvalid')
+    }
   }
   const category = categories.find((candidate) => candidate.id === values.categoryId)
   if (!category || !categorySupportsKind(category, values.kind)) {
@@ -119,7 +126,9 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const { locale } = useLocale()
   const [values, setValues] = useState(() => initialValues(initialTransaction))
-  const firstOccurrenceDateChanged = useRef(Boolean(initialTransaction))
+  const firstOccurrenceDateChanged = useRef(Boolean(
+    initialTransaction && initialTransaction.kind !== 'INCOME',
+  ))
   const reimbursementGeneration = useRef(0)
   const [clientError, setClientError] = useState<string | null>(null)
   const [reimbursementEnabled, setReimbursementEnabled] = useState(false)
@@ -154,14 +163,19 @@ export function TransactionForm({
   }
 
   function changeKind(nextKind: UserManagedTransactionKind) {
-    const selected = categories.find((category) => category.id === values.categoryId)
-    setValues((current) => ({
-      ...current,
-      kind: nextKind,
-      categoryId: selected && categorySupportsKind(selected, nextKind)
-        ? current.categoryId
-        : '',
-    }))
+    firstOccurrenceDateChanged.current = false
+    setValues((current) => {
+      const selected = categories.find((category) => category.id === current.categoryId)
+      return {
+        ...current,
+        kind: nextKind,
+        categoryId: selected && categorySupportsKind(selected, nextKind)
+          ? current.categoryId
+          : '',
+        firstOccurrenceDate: current.eventDate,
+        installmentCount: '1',
+      }
+    })
     setClientError(null)
     if (nextKind !== 'EXPENSE') {
       clearReimbursementState()
@@ -176,14 +190,17 @@ export function TransactionForm({
       return
     }
     setClientError(null)
+    const income = values.kind === 'INCOME'
     const transactionRequest: TransactionRequest = {
       kind: values.kind,
       description: values.description.trim(),
       amount: normalizeAmount(values.amount),
       categoryId: values.categoryId,
       eventDate: values.eventDate,
-      firstOccurrenceDate: values.firstOccurrenceDate || values.eventDate,
-      installmentCount: Number(values.installmentCount),
+      firstOccurrenceDate: income
+        ? values.eventDate
+        : values.firstOccurrenceDate || values.eventDate,
+      installmentCount: income ? 1 : Number(values.installmentCount),
     }
     if (!reimbursementMode || !reimbursementCreation) {
       onSubmit(transactionRequest)
@@ -302,7 +319,7 @@ export function TransactionForm({
             ))}
           </select>
         </div>
-        <div className="space-y-2 xl:col-start-1">
+        <div className={values.kind === 'EXPENSE' ? 'space-y-2 xl:col-start-1' : 'space-y-2'}>
           <Label htmlFor="managed-transaction-date">{transactionText(locale, 'eventDate')}</Label>
           <Input
             id="managed-transaction-date"
@@ -314,7 +331,7 @@ export function TransactionForm({
               setValues((current) => ({
                 ...current,
                 eventDate,
-                firstOccurrenceDate: firstOccurrenceDateChanged.current
+                firstOccurrenceDate: current.kind !== 'INCOME' && firstOccurrenceDateChanged.current
                   ? current.firstOccurrenceDate
                   : eventDate,
               }))
@@ -325,42 +342,46 @@ export function TransactionForm({
             {transactionText(locale, 'eventDateHelp')}
           </p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="managed-transaction-first-occurrence-date">{transactionText(locale, 'firstCashFlowDate')}</Label>
-          <Input
-            id="managed-transaction-first-occurrence-date"
-            type="date"
-            value={values.firstOccurrenceDate}
-            aria-describedby="managed-transaction-first-occurrence-date-help"
-            onChange={(event) => {
-              firstOccurrenceDateChanged.current = true
-              setValues((current) => ({
-                ...current,
-                firstOccurrenceDate: event.target.value,
-              }))
-            }}
-            required
-          />
-          <p
-            id="managed-transaction-first-occurrence-date-help"
-            className="text-xs text-muted-foreground"
-          >
-            {transactionText(locale, 'firstCashFlowDateHelp')}
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="managed-transaction-installments">{transactionText(locale, 'installmentsTitle')}</Label>
-          <Input
-            id="managed-transaction-installments"
-            type="number"
-            min={1}
-            max={120}
-            step={1}
-            value={values.installmentCount}
-            onChange={(event) => setValues((current) => ({ ...current, installmentCount: event.target.value }))}
-            required
-          />
-        </div>
+        {values.kind === 'EXPENSE' && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="managed-transaction-first-occurrence-date">{transactionText(locale, 'firstCashFlowDate')}</Label>
+              <Input
+                id="managed-transaction-first-occurrence-date"
+                type="date"
+                value={values.firstOccurrenceDate}
+                aria-describedby="managed-transaction-first-occurrence-date-help"
+                onChange={(event) => {
+                  firstOccurrenceDateChanged.current = true
+                  setValues((current) => ({
+                    ...current,
+                    firstOccurrenceDate: event.target.value,
+                  }))
+                }}
+                required
+              />
+              <p
+                id="managed-transaction-first-occurrence-date-help"
+                className="text-xs text-muted-foreground"
+              >
+                {transactionText(locale, 'firstCashFlowDateHelp')}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="managed-transaction-installments">{transactionText(locale, 'installmentsTitle')}</Label>
+              <Input
+                id="managed-transaction-installments"
+                type="number"
+                min={1}
+                max={120}
+                step={1}
+                value={values.installmentCount}
+                onChange={(event) => setValues((current) => ({ ...current, installmentCount: event.target.value }))}
+                required
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {canCreateReimbursement && values.kind === 'EXPENSE' && (

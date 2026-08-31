@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react'
 import { Check, CircleAlert, Volume2, VolumeX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AssistantStatus, SpeechStatus } from '@/types/api'
@@ -32,25 +31,6 @@ export function SpeechResult({
   voiceReplyLabel = 'Voice reply',
   unsupportedLabel = 'Audio playback is not supported.',
 }: SpeechResultProps) {
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const attemptedAudioUrl = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!audioUrl) {
-      attemptedAudioUrl.current = null
-      return
-    }
-    if (speechStatus !== 'GENERATED' || attemptedAudioUrl.current === audioUrl) return
-    attemptedAudioUrl.current = audioUrl
-    try {
-      const playback = audioRef.current?.play()
-      if (playback) void playback.catch(() => undefined)
-    }
-    catch {
-      // Browser autoplay policies may reject playback; native controls remain available.
-    }
-  }, [audioUrl, speechStatus])
-
   if (speechStatus === 'UNAVAILABLE') {
     return (
       <div className="flex items-start gap-2 rounded-xl bg-protected-soft p-3 text-sm text-protected" role="status">
@@ -63,7 +43,7 @@ export function SpeechResult({
   return (
     <div className="rounded-xl bg-voice-soft p-3">
       <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground"><Volume2 className="size-4 text-voice" aria-hidden="true" /> {voiceReplyLabel}</p>
-      <audio ref={audioRef} className="h-9 w-full" controls src={audioUrl}>{unsupportedLabel}</audio>
+      <audio className="h-9 w-full" controls src={audioUrl}>{unsupportedLabel}</audio>
     </div>
   )
 }

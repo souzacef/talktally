@@ -17,6 +17,8 @@ import type { UserAccountResponse, VoiceAssistantResponse } from '@/types/api'
 const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
+  voiceStartRecording: vi.fn(),
+  speechPlaybackPrime: vi.fn(),
   voiceResult: null as VoiceAssistantResponse | null,
   voiceError: null as Error | null,
 }))
@@ -41,10 +43,16 @@ vi.mock('@/features/assistant/hooks/use-voice-assistant', () => ({
       state: 'idle',
       isRecording: false,
       isProcessing: false,
-      startRecording: vi.fn(),
+      startRecording: mocks.voiceStartRecording,
       stopRecording: vi.fn(),
     }
   },
+}))
+
+vi.mock('@/lib/audio/use-speech-playback', () => ({
+  useSpeechPlayback: () => ({
+    prime: mocks.speechPlaybackPrime,
+  }),
 }))
 
 const userA: UserAccountResponse = {
@@ -97,6 +105,8 @@ describe('AssistantPage session conversation', () => {
     window.localStorage.setItem('talktally.locale', 'en-US')
     mocks.sendMessage.mockReset()
     mocks.voiceResultHandler = undefined
+    mocks.voiceStartRecording.mockReset()
+    mocks.speechPlaybackPrime.mockReset()
     mocks.voiceResult = null
     mocks.voiceError = null
   })
@@ -217,6 +227,22 @@ describe('AssistantPage session conversation', () => {
 
     expect(screen.getByPlaceholderText('Ask about your finances or record a transaction…')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Ask or record a transaction…')).toBeInTheDocument()
+  })
+
+  it('primes speech playback synchronously before starting Assistant recording', async () => {
+    const order: string[] = []
+    mocks.speechPlaybackPrime.mockImplementation(() => order.push('prime'))
+    mocks.voiceStartRecording.mockImplementation(() => {
+      order.push('start-recording')
+      return Promise.resolve()
+    })
+    renderAssistant()
+
+    await userEvent.click(
+      screen.getAllByRole('button', { name: 'Start microphone recording' })[0]!,
+    )
+
+    expect(order).toEqual(['prime', 'start-recording'])
   })
 
   it('uses finance-oriented desktop and compact placeholders in pt-BR', () => {

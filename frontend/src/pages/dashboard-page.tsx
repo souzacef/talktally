@@ -32,6 +32,7 @@ import {
 import { currentMonthRange, trailingSixMonthRange } from '@/lib/dates/reporting-periods'
 import { createAudioObjectUrl } from '@/lib/audio/base64-audio'
 import { financialAmountStyle } from '@/lib/money/financial-display'
+import { useSpeechPlayback } from '@/lib/audio/use-speech-playback'
 import { queryKeys } from '@/lib/query/query-client'
 import type { VoiceAssistantResponse } from '@/types/api'
 
@@ -82,6 +83,9 @@ export function DashboardPage({
   })
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const userFirstName = firstName(user?.displayName)
+  const { prime: primeSpeechPlayback } = useSpeechPlayback(
+    voice.result?.speechStatus === 'GENERATED' ? audioUrl : null,
+  )
 
   useEffect(() => {
     const audio = voice.result?.audio
@@ -96,7 +100,10 @@ export function DashboardPage({
 
   function toggleVoice() {
     if (voice.isRecording) voice.stopRecording()
-    else void voice.startRecording()
+    else {
+      primeSpeechPlayback()
+      void voice.startRecording()
+    }
   }
 
   return (

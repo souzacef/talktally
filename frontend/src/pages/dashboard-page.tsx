@@ -186,8 +186,8 @@ export function DashboardPage({
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
-              <div><p className="font-heading text-xl font-semibold">{summary.data?.owedToMe.openClaims ?? '—'}</p><p className="text-xs opacity-70">{t('dashboard.openClaims')}</p></div>
-              <div><p className="font-heading text-xl font-semibold">{people.data?.length ?? '—'}</p><p className="text-xs opacity-70">{t('dashboard.people')}</p></div>
+              <div><p className="font-heading text-xl font-semibold">{summary.data?.owedToMe.openClaims ?? '—'}</p><p className="text-xs opacity-70">{summary.data ? plural('dashboard.openClaims', summary.data.owedToMe.openClaims) : t('dashboard.openClaims')}</p></div>
+              <div><p className="font-heading text-xl font-semibold">{people.data?.length ?? '—'}</p><p className="text-xs opacity-70">{people.data ? plural('dashboard.people', people.data.length) : t('dashboard.people')}</p></div>
             </div>
             <Link to="/owed" className="mt-5 text-sm font-semibold underline decoration-white/40 underline-offset-4">{t('dashboard.viewReimbursements')}</Link>
           </CardContent>

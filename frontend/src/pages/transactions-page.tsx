@@ -24,6 +24,7 @@ import { reimbursementApi } from '@/features/reimbursements/api/reimbursement-ap
 import { transactionApi } from '@/features/transactions/api/transaction-api'
 import { TransactionForm } from '@/features/transactions/components/transaction-form'
 import {
+  transactionCountText,
   transactionKindLabel,
   transactionSourceLabel,
   transactionText,
@@ -286,7 +287,7 @@ export function TransactionsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">{transactionText(locale, 'transactionLedger')}</CardTitle>
-          <CardDescription>{query.data ? transactionText(locale, 'records', { count: query.data.totalElements }) : transactionText(locale, 'realApiData')}</CardDescription>
+          <CardDescription>{query.data ? transactionCountText(locale, 'records', query.data.totalElements) : transactionText(locale, 'realApiData')}</CardDescription>
         </CardHeader>
         <CardContent>
           {query.isPending && <div className="h-48 animate-pulse rounded-2xl bg-muted" aria-label={transactionText(locale, 'loadingTransactions')} />}
@@ -311,7 +312,7 @@ export function TransactionsPage() {
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span>{formatDate(transaction.eventDate)}</span>
                         <span>{transactionText(locale, 'recordedAt')} {formatDateTime(transaction.createdAt)}</span>
-                        {transaction.installmentCount > 1 && <span>{transactionText(locale, 'installments', { count: transaction.installmentCount })}</span>}
+                        {transaction.installmentCount > 1 && <span>{transactionCountText(locale, 'installments', transaction.installmentCount)}</span>}
                         <span>{categoryName}</span>
                         <span>{transactionSourceLabel(transaction.source, locale)}</span>
                       </div>

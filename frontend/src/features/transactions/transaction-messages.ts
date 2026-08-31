@@ -1,4 +1,5 @@
 import type { AppLocale } from '@/app/providers/locale-provider'
+import { formatPluralMessage } from '@/lib/plural'
 import type { TransactionKind, TransactionSource } from '@/types/api'
 
 const enUS = {
@@ -30,7 +31,6 @@ const enUS = {
   reset: 'Reset',
   categoryFilteringUnavailable: 'Category names and category filtering are temporarily unavailable.',
   transactionLedger: 'Transaction ledger',
-  records: '{count} records',
   realApiData: 'Your financial records',
   loadingTransactions: 'Loading transactions',
   transactionsUnavailable: 'Transactions unavailable',
@@ -39,7 +39,6 @@ const enUS = {
   noMatchingTransactionsDescription: 'Try changing the filters, or use the assistant to record new activity.',
   loadingCategory: 'Loading category…',
   viewTransaction: 'View transaction {description}',
-  installments: '{count} installments',
   protected: 'Protected',
   edit: 'Edit',
   editTransaction: 'Edit transaction',
@@ -148,7 +147,6 @@ const ptBR: Record<TransactionMessageKey, string> = {
   reset: 'Limpar',
   categoryFilteringUnavailable: 'Os nomes e o filtro de categorias estão temporariamente indisponíveis.',
   transactionLedger: 'Livro de transações',
-  records: '{count} registros',
   realApiData: 'Seus registros financeiros',
   loadingTransactions: 'Carregando transações',
   transactionsUnavailable: 'Transações indisponíveis',
@@ -157,7 +155,6 @@ const ptBR: Record<TransactionMessageKey, string> = {
   noMatchingTransactionsDescription: 'Altere os filtros ou use o assistente para registrar uma nova movimentação.',
   loadingCategory: 'Carregando categoria…',
   viewTransaction: 'Ver transação {description}',
-  installments: '{count} parcelas',
   protected: 'Protegida',
   edit: 'Editar',
   editTransaction: 'Editar transação',
@@ -240,6 +237,19 @@ const messages: Record<AppLocale, Record<TransactionMessageKey, string>> = {
   'pt-BR': ptBR,
 }
 
+const countMessages = {
+  'en-US': {
+    records: { one: '{count} record', other: '{count} records' },
+    installments: { one: '{count} installment', other: '{count} installments' },
+  },
+  'pt-BR': {
+    records: { one: '{count} registro', other: '{count} registros' },
+    installments: { one: '{count} parcela', other: '{count} parcelas' },
+  },
+} as const
+
+type TransactionCountMessageKey = keyof (typeof countMessages)['en-US']
+
 function interpolate(message: string, params?: Record<string, string | number>): string {
   if (!params) return message
   return message.replace(/\{(\w+)\}/g, (match, key: string) => (
@@ -253,6 +263,14 @@ export function transactionText(
   params?: Record<string, string | number>,
 ): string {
   return interpolate(messages[locale][key], params)
+}
+
+export function transactionCountText(
+  locale: AppLocale,
+  key: TransactionCountMessageKey,
+  count: number,
+): string {
+  return formatPluralMessage(locale, count, countMessages[locale][key])
 }
 
 export function transactionKindLabel(kind: TransactionKind, locale: AppLocale): string {

@@ -222,6 +222,48 @@ describe('Dashboard Recent Activity navigation', () => {
     },
   )
 
+  it.each([
+    ['en-US', 0, 'Open claims', 'People'],
+    ['en-US', 1, 'Open claim', 'Person'],
+    ['en-US', 2, 'Open claims', 'People'],
+    ['pt-BR', 0, 'Cobranças abertas', 'Pessoas'],
+    ['pt-BR', 1, 'Cobrança aberta', 'Pessoa'],
+    ['pt-BR', 2, 'Cobranças abertas', 'Pessoas'],
+  ] as const)(
+    'pluralizes dashboard count labels in %s for %i',
+    async (locale, count, openClaimsLabel, peopleLabel) => {
+      window.localStorage.setItem(LOCALE_KEY, locale)
+      mocks.summary.mockReturnValue({
+        isPending: false,
+        error: null,
+        data: {
+          period: {
+            earnedIncome: '0',
+            expenses: '7.89',
+            reimbursementsReceived: '0',
+            netCashFlow: '-7.89',
+          },
+          owedToMe: { outstanding: '0', openClaims: count },
+        },
+      })
+      mocks.peopleList.mockResolvedValue(Array.from({ length: count }, (_, index) => ({
+        id: `person-${index}`,
+        displayName: `Person ${index}`,
+      })))
+
+      renderDashboard()
+
+      const openClaims = screen.getByText(openClaimsLabel)
+      expect(openClaims.previousElementSibling).toHaveTextContent(String(count))
+      await waitFor(() => {
+        const people = screen.getAllByText(peopleLabel).find(
+          (element) => element.previousElementSibling?.textContent === String(count),
+        )
+        expect(people).toBeDefined()
+      })
+    },
+  )
+
   it('appends one Home voice exchange to existing Assistant history without audio', async () => {
     const audioBase64 = 'QUJD'
     assistantConversationStorage.write('user-id', [

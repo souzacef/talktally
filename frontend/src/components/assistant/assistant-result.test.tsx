@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { AssistantStatusChip, SpeechResult } from '@/components/assistant/assistant-result'
 
 describe('assistant result presentation', () => {
@@ -30,6 +30,24 @@ describe('assistant result presentation', () => {
 
     rerender(<SpeechResult speechStatus="GENERATED" audioUrl="blob:second" />)
     expect(document.querySelector('audio')).toHaveAttribute('src', 'blob:second')
+  })
+
+  it('notifies the page when manual native playback starts', () => {
+    const onManualPlay = vi.fn()
+    render(
+      <SpeechResult
+        speechStatus="GENERATED"
+        audioUrl="blob:manual"
+        onManualPlay={onManualPlay}
+      />,
+    )
+
+    const audio = document.querySelector('audio')
+    expect(audio).not.toBeNull()
+
+    fireEvent.play(audio!)
+
+    expect(onManualPlay).toHaveBeenCalledTimes(1)
   })
 
   it('does not render controls for unavailable speech or a null audio URL', () => {

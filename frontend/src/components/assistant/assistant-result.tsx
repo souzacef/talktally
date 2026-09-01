@@ -22,6 +22,7 @@ interface SpeechResultProps {
   unavailableLabel?: string
   voiceReplyLabel?: string
   unsupportedLabel?: string
+  onManualPlay?: () => void
 }
 
 export function SpeechResult({
@@ -30,6 +31,7 @@ export function SpeechResult({
   unavailableLabel = 'Voice reply unavailable — result still succeeded.',
   voiceReplyLabel = 'Voice reply',
   unsupportedLabel = 'Audio playback is not supported.',
+  onManualPlay,
 }: SpeechResultProps) {
   if (speechStatus === 'UNAVAILABLE') {
     return (
@@ -43,7 +45,7 @@ export function SpeechResult({
   return (
     <div className="rounded-xl bg-voice-soft p-3">
       <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground"><Volume2 className="size-4 text-voice" aria-hidden="true" /> {voiceReplyLabel}</p>
-      <audio className="h-9 w-full" controls src={audioUrl}>{unsupportedLabel}</audio>
+      <audio className="h-9 w-full" controls src={audioUrl} onPlay={onManualPlay}>{unsupportedLabel}</audio>
     </div>
   )
 }

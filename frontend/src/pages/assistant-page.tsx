@@ -94,7 +94,7 @@ function AuthenticatedAssistantPage({
     tooShortMessage: text('recordingTooShort'),
     requestErrorMessage: (error) => assistantErrorText(locale, error),
   })
-  const { prime: primeSpeechPlayback } = useSpeechPlayback(
+  const { prime: primeSpeechPlayback, stop: stopSpeechPlayback } = useSpeechPlayback(
     voice.result?.speechStatus === 'GENERATED' ? audioUrl : null,
   )
   const textMutation = useMutation({ mutationFn: (submitted: string) => assistantApi.sendMessage(submitted) })
@@ -145,6 +145,7 @@ function AuthenticatedAssistantPage({
     unavailableLabel: text('voiceUnavailable'),
     voiceReplyLabel: text('voiceReply'),
     unsupportedLabel: text('audioUnsupported'),
+    onManualPlay: stopSpeechPlayback,
   }
 
   return (

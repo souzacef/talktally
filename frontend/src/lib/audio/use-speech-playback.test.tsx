@@ -1,56 +1,47 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   useSpeechPlayback,
+  type SpeechPlaybackAudio,
   type SpeechPlaybackOptions,
 } from '@/lib/audio/use-speech-playback'
 
-function createAudioContextHarness(initialState: AudioContextState = 'suspended') {
-  let state = initialState
-  const sources: Array<{
-    start: ReturnType<typeof vi.fn>
-    stop: ReturnType<typeof vi.fn>
-    disconnect: ReturnType<typeof vi.fn>
-  }> = []
-  const resume = vi.fn(() => {
-    state = 'running'
-    return Promise.resolve()
+function createAudioHarness(
+  playImplementation?: () => Promise<void>,
+) {
+  const playedSources: string[] = []
+
+  let audio!: SpeechPlaybackAudio
+
+  const play = vi.fn(() => {
+    playedSources.push(audio.src)
+    return playImplementation?.() ?? Promise.resolve()
   })
-  const close = vi.fn(() => {
-    state = 'closed'
-    return Promise.resolve()
+  const pause = vi.fn()
+  const load = vi.fn()
+  const removeAttribute = vi.fn((name: string) => {
+    if (name === 'src') audio.src = ''
   })
-  const decodeAudioData = vi.fn(async () => ({}) as AudioBuffer)
-  const createBufferSource = vi.fn(() => {
-    const source = {
-      buffer: null,
-      connect: vi.fn(),
-      addEventListener: vi.fn(),
-      start: vi.fn(),
-      stop: vi.fn(),
-      disconnect: vi.fn(),
-    }
-    sources.push(source)
-    return source as unknown as AudioBufferSourceNode
-  })
-  const context = {
-    get state() {
-      return state
-    },
-    destination: {},
-    resume,
-    close,
-    decodeAudioData,
-    createBufferSource,
-  } as unknown as AudioContext
+
+  audio = {
+    src: '',
+    currentTime: 0,
+    play,
+    pause,
+    load,
+    removeAttribute,
+  }
+
+  const audioFactory = vi.fn(() => audio)
 
   return {
-    context,
-    resume,
-    close,
-    decodeAudioData,
-    createBufferSource,
-    sources,
+    audio,
+    audioFactory,
+    play,
+    pause,
+    load,
+    removeAttribute,
+    playedSources,
   }
 }
 
@@ -65,94 +56,174 @@ function renderPlayback(
 }
 
 describe('useSpeechPlayback', () => {
-  it('creates and resumes its context synchronously when primed', () => {
+  it('creates and primes one reusable native audio element synchronously', () => {
     const events: string[] = []
-    const harness = createAudioContextHarness()
-    harness.resume.mockImplementation(() => {
-      events.push('resume')
+    const harness = createAudioHarness()
+
+    harness.audioFactory.mockImplementation(() => {
+      events.push('create')
+      return harness.audio
+    })
+    harness.play.mockImplementation(() => {
+      events.push('play')
+      harness.playedSources.push(harness.audio.src)
       return Promise.resolve()
     })
-    const contextFactory = vi.fn(() => {
-      events.push('create')
-      return harness.context
+
+    const { result } = renderPlayback({
+      audioFactory: harness.audioFactory,
     })
-    const { result } = renderPlayback({ contextFactory })
 
     act(() => {
       result.current.prime()
       events.push('after-prime')
     })
 
-    expect(events).toEqual(['create', 'resume', 'after-prime'])
+    expect(events).toEqual(['create', 'play', 'after-prime'])
+    expect(harness.audioFactory).toHaveBeenCalledTimes(1)
+    expect(harness.playedSources[0]).toMatch(/^data:audio\/wav;base64,/)
   })
 
-  it('plays each new audio URL once and ignores rerenders with the same URL', async () => {
-    const harness = createAudioContextHarness()
-    const loadAudio = vi.fn(async (_url: string, _signal: AbortSignal) => new ArrayBuffer(8))
-    const options = {
-      contextFactory: () => harness.context,
-      loadAudio,
-    }
-    const { result, rerender } = renderPlayback(options)
+  it('plays each distinct generated URL once and reuses the same audio element', () => {
+    const harness = createAudioHarness()
+    const { result, rerender } = renderPlayback({
+      audioFactory: harness.audioFactory,
+    })
 
     act(() => result.current.prime())
-    rerender({ audioUrl: 'blob:first' })
-    await waitFor(() => expect(harness.sources[0]?.start).toHaveBeenCalledTimes(1))
 
     rerender({ audioUrl: 'blob:first' })
-    expect(loadAudio).toHaveBeenCalledTimes(1)
+    expect(harness.play).toHaveBeenCalledTimes(2)
+
+    rerender({ audioUrl: 'blob:first' })
+    expect(harness.play).toHaveBeenCalledTimes(2)
 
     rerender({ audioUrl: 'blob:second' })
-    await waitFor(() => expect(harness.sources[1]?.start).toHaveBeenCalledTimes(1))
+    expect(harness.play).toHaveBeenCalledTimes(3)
 
-    expect(loadAudio.mock.calls.map(([url]) => url)).toEqual(['blob:first', 'blob:second'])
-    expect(harness.sources[0]?.stop).toHaveBeenCalledTimes(1)
-    expect(harness.sources[0]?.disconnect).toHaveBeenCalledTimes(1)
+    expect(harness.playedSources).toEqual([
+      expect.stringMatching(/^data:audio\/wav;base64,/),
+      'blob:first',
+      'blob:second',
+    ])
+    expect(harness.audioFactory).toHaveBeenCalledTimes(1)
   })
 
-  it('fails silently when automatic playback cannot decode audio', async () => {
-    const harness = createAudioContextHarness()
-    harness.decodeAudioData.mockRejectedValueOnce(new DOMException('Decode failed', 'EncodingError'))
-    const loadAudio = vi.fn(async () => new ArrayBuffer(8))
+  it('does not let delayed primer completion reset a real reply', async () => {
+    let resolvePrimer!: () => void
+
+    const primerPromise = new Promise<void>((resolve) => {
+      resolvePrimer = resolve
+    })
+
+    let playCall = 0
+    const harness = createAudioHarness(() => {
+      playCall += 1
+      return playCall === 1 ? primerPromise : Promise.resolve()
+    })
+
     const { result, rerender } = renderPlayback({
-      contextFactory: () => harness.context,
-      loadAudio,
+      audioFactory: harness.audioFactory,
     })
 
     act(() => result.current.prime())
-    expect(() => rerender({ audioUrl: 'blob:blocked' })).not.toThrow()
-    await waitFor(() => expect(harness.decodeAudioData).toHaveBeenCalledTimes(1))
 
-    expect(harness.createBufferSource).not.toHaveBeenCalled()
+    rerender({ audioUrl: 'blob:reply' })
+
+    expect(harness.audio.src).toBe('blob:reply')
+    expect(harness.pause).toHaveBeenCalledTimes(2)
+    expect(harness.load).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      resolvePrimer()
+      await primerPromise
+    })
+
+    expect(harness.audio.src).toBe('blob:reply')
+    expect(harness.pause).toHaveBeenCalledTimes(2)
+    expect(harness.load).toHaveBeenCalledTimes(2)
   })
 
-  it('leaves playback to native controls when Web Audio is unavailable', () => {
-    const loadAudio = vi.fn(async () => new ArrayBuffer(8))
+  it('swallows native autoplay rejection', async () => {
+    let playCall = 0
+    const harness = createAudioHarness(() => {
+      playCall += 1
+      if (playCall === 2) {
+        return Promise.reject(new DOMException('Blocked', 'NotAllowedError'))
+      }
+      return Promise.resolve()
+    })
+
     const { result, rerender } = renderPlayback({
-      contextFactory: () => null,
-      loadAudio,
+      audioFactory: harness.audioFactory,
     })
 
     act(() => result.current.prime())
-    rerender({ audioUrl: 'blob:fallback' })
 
-    expect(loadAudio).not.toHaveBeenCalled()
+    expect(() => {
+      rerender({ audioUrl: 'blob:blocked' })
+    }).not.toThrow()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(harness.play).toHaveBeenCalledTimes(2)
+    expect(harness.audio.src).toBe('blob:blocked')
   })
 
-  it('stops active playback and closes the context on unmount', async () => {
-    const harness = createAudioContextHarness()
+  it('leaves playback to visible native controls when automatic audio is unavailable', () => {
+    const audioFactory = vi.fn(() => null)
+    const { result, rerender } = renderPlayback({ audioFactory })
+
+    act(() => result.current.prime())
+
+    expect(() => {
+      rerender({ audioUrl: 'blob:fallback' })
+    }).not.toThrow()
+
+    expect(audioFactory).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops hidden playback without affecting exactly-once bookkeeping', () => {
+    const harness = createAudioHarness()
+    const { result, rerender } = renderPlayback({
+      audioFactory: harness.audioFactory,
+    })
+
+    act(() => result.current.prime())
+    rerender({ audioUrl: 'blob:reply' })
+
+    const pauseCallsBeforeStop = harness.pause.mock.calls.length
+    const loadCallsBeforeStop = harness.load.mock.calls.length
+
+    act(() => result.current.stop())
+
+    expect(harness.pause).toHaveBeenCalledTimes(pauseCallsBeforeStop + 1)
+    expect(harness.load).toHaveBeenCalledTimes(loadCallsBeforeStop + 1)
+    expect(harness.audio.src).toBe('')
+
+    rerender({ audioUrl: 'blob:reply' })
+
+    expect(harness.play).toHaveBeenCalledTimes(2)
+  })
+
+  it('resets the reusable hidden element on unmount', () => {
+    const harness = createAudioHarness()
     const { result, rerender, unmount } = renderPlayback({
-      contextFactory: () => harness.context,
-      loadAudio: async () => new ArrayBuffer(8),
+      audioFactory: harness.audioFactory,
     })
 
     act(() => result.current.prime())
     rerender({ audioUrl: 'blob:active' })
-    await waitFor(() => expect(harness.sources[0]?.start).toHaveBeenCalledTimes(1))
+
+    const pauseCallsBeforeUnmount = harness.pause.mock.calls.length
+    const loadCallsBeforeUnmount = harness.load.mock.calls.length
+
     unmount()
 
-    expect(harness.sources[0]?.stop).toHaveBeenCalledTimes(1)
-    expect(harness.sources[0]?.disconnect).toHaveBeenCalledTimes(1)
-    expect(harness.close).toHaveBeenCalledTimes(1)
+    expect(harness.pause).toHaveBeenCalledTimes(pauseCallsBeforeUnmount + 1)
+    expect(harness.load).toHaveBeenCalledTimes(loadCallsBeforeUnmount + 1)
+    expect(harness.audio.src).toBe('')
   })
 })

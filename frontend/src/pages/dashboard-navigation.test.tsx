@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
   voiceStartRecording: vi.fn(),
   speechPlaybackPrime: vi.fn(),
+  speechPlaybackStop: vi.fn(),
   speechPlaybackAudioUrl: null as string | null,
   voiceError: null as Error | null,
 }))
@@ -73,7 +74,10 @@ vi.mock('@/features/assistant/hooks/use-voice-assistant', async () => {
 vi.mock('@/lib/audio/use-speech-playback', () => ({
   useSpeechPlayback: (audioUrl: string | null) => {
     mocks.speechPlaybackAudioUrl = audioUrl
-    return { prime: mocks.speechPlaybackPrime }
+    return {
+      prime: mocks.speechPlaybackPrime,
+      stop: mocks.speechPlaybackStop,
+    }
   },
 }))
 
@@ -131,6 +135,7 @@ describe('Dashboard Recent Activity navigation', () => {
     mocks.voiceResultHandler = undefined
     mocks.voiceStartRecording.mockReset()
     mocks.speechPlaybackPrime.mockReset()
+    mocks.speechPlaybackStop.mockReset()
     mocks.speechPlaybackAudioUrl = null
     mocks.voiceError = null
     mocks.summary.mockReturnValue({
@@ -194,6 +199,33 @@ describe('Dashboard Recent Activity navigation', () => {
     await user.click(screen.getByRole('button', { name: 'Start microphone recording' }))
 
     expect(order).toEqual(['prime', 'start-recording'])
+  })
+
+  it('stops hidden Dashboard autoplay when the user starts manual playback', async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:dashboard-manual-reply')
+    renderDashboard()
+
+    act(() => mocks.voiceResultHandler?.({
+      transcript: 'Voice question',
+      message: 'Voice answer',
+      status: 'COMPLETED',
+      speechStatus: 'GENERATED',
+      audio: {
+        contentType: 'audio/wav',
+        base64: 'QUJD',
+      },
+    }))
+
+    await waitFor(() => {
+      expect(document.querySelector('audio')).not.toBeNull()
+    })
+
+    const audio = document.querySelector('audio')!
+    expect(audio).not.toHaveAttribute('autoplay')
+
+    fireEvent.play(audio)
+
+    expect(mocks.speechPlaybackStop).toHaveBeenCalledTimes(1)
   })
 
   it('shows the friendly category and navigates a recent transaction to detail', async () => {

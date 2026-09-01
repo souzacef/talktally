@@ -83,7 +83,7 @@ export function DashboardPage({
   })
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const userFirstName = firstName(user?.displayName)
-  const { prime: primeSpeechPlayback } = useSpeechPlayback(
+  const { prime: primeSpeechPlayback, stop: stopSpeechPlayback } = useSpeechPlayback(
     voice.result?.speechStatus === 'GENERATED' ? audioUrl : null,
   )
 
@@ -142,6 +142,7 @@ export function DashboardPage({
                     unavailableLabel={t('dashboard.voiceReplyUnavailable')}
                     voiceReplyLabel={assistantText(locale, 'voiceReply')}
                     unsupportedLabel={assistantText(locale, 'audioUnsupported')}
+                    onManualPlay={stopSpeechPlayback}
                   />
                 </div>
               </div>

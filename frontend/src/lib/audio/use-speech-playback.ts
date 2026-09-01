@@ -1,40 +1,37 @@
 import { useCallback, useEffect, useRef } from 'react'
 
-type AudioContextFactory = () => AudioContext | null
-type AudioLoader = (url: string, signal: AbortSignal) => Promise<ArrayBuffer>
+const SILENT_PRIMER_WAV = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA=='
+
+export interface SpeechPlaybackAudio {
+  src: string
+  currentTime: number
+  play: () => Promise<void>
+  pause: () => void
+  load: () => void
+  removeAttribute: (name: string) => void
+}
+
+type AudioFactory = () => SpeechPlaybackAudio | null
 
 export interface SpeechPlaybackOptions {
-  contextFactory?: AudioContextFactory
-  loadAudio?: AudioLoader
+  audioFactory?: AudioFactory
 }
 
-function createBrowserAudioContext(): AudioContext | null {
-  const AudioContextConstructor = globalThis.AudioContext
-    ?? (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-  return AudioContextConstructor ? new AudioContextConstructor() : null
-}
-
-async function loadAudioFromUrl(url: string, signal: AbortSignal): Promise<ArrayBuffer> {
-  const response = await fetch(url, { signal })
-  if (!response.ok) throw new Error('Unable to load speech audio')
-  return response.arrayBuffer()
+function createBrowserAudio(): SpeechPlaybackAudio | null {
+  if (typeof Audio === 'undefined') return null
+  const audio = new Audio()
+  audio.preload = 'auto'
+  return audio
 }
 
 class SpeechPlaybackSession {
-  private context: AudioContext | null = null
-  private source: AudioBufferSourceNode | null = null
-  private pendingRequest: AbortController | null = null
+  private audio: SpeechPlaybackAudio | null = null
   private attemptedUrl: string | null = null
   private active = true
-  private readonly contextFactory: AudioContextFactory
-  private readonly loadAudio: AudioLoader
+  private readonly audioFactory: AudioFactory
 
-  constructor(
-    contextFactory: AudioContextFactory,
-    loadAudio: AudioLoader,
-  ) {
-    this.contextFactory = contextFactory
-    this.loadAudio = loadAudio
+  constructor(audioFactory: AudioFactory) {
+    this.audioFactory = audioFactory
   }
 
   activate() {
@@ -43,95 +40,81 @@ class SpeechPlaybackSession {
 
   prime() {
     if (!this.active) return
-    try {
-      if (!this.context || this.context.state === 'closed') {
-        this.context = this.contextFactory()
-      }
-      if (this.context && this.context.state !== 'running' && this.context.state !== 'closed') {
-        void this.context.resume().catch(() => undefined)
-      }
-    }
-    catch {
-      // Autoplay remains best-effort; the native audio controls are the fallback.
-    }
+    const audio = this.ensureAudio()
+    if (!audio) return
+
+    this.reset(audio)
+    audio.src = SILENT_PRIMER_WAV
+    this.rewind(audio)
+    this.attemptPlay(audio)
   }
 
   playOnce(url: string) {
     if (!this.active || this.attemptedUrl === url) return
     this.attemptedUrl = url
-    this.cancelCurrentPlayback()
 
-    const context = this.context
-    if (!context || context.state === 'closed') return
+    const audio = this.audio
+    if (!audio) return
+    this.reset(audio)
+    audio.src = url
+    this.rewind(audio)
+    this.attemptPlay(audio)
+  }
 
-    const request = new AbortController()
-    this.pendingRequest = request
-    void this.play(context, url, request)
-      .catch(() => undefined)
-      .finally(() => {
-        if (this.pendingRequest === request) this.pendingRequest = null
-      })
+  stop() {
+    if (this.audio) this.reset(this.audio)
   }
 
   dispose() {
     this.active = false
     this.attemptedUrl = null
-    this.cancelCurrentPlayback()
-    const context = this.context
-    this.context = null
-    if (context && context.state !== 'closed') {
-      void context.close().catch(() => undefined)
-    }
+    this.stop()
+    this.audio = null
   }
 
-  private async play(context: AudioContext, url: string, request: AbortController) {
-    if (context.state !== 'running') {
-      await context.resume()
-      if (this.contextState(context) !== 'running') return
-    }
-    if (!this.active || request.signal.aborted || this.pendingRequest !== request) return
-
-    const encodedAudio = await this.loadAudio(url, request.signal)
-    const audioBuffer = await context.decodeAudioData(encodedAudio)
-    if (!this.active || request.signal.aborted || this.pendingRequest !== request) return
-
-    const source = context.createBufferSource()
+  private ensureAudio(): SpeechPlaybackAudio | null {
+    if (this.audio) return this.audio
     try {
-      source.buffer = audioBuffer
-      source.connect(context.destination)
-      source.addEventListener('ended', () => {
-        if (this.source !== source) return
-        this.source = null
-        source.disconnect()
-      }, { once: true })
-      this.pendingRequest = null
-      this.source = source
-      source.start()
+      this.audio = this.audioFactory()
     }
     catch {
-      if (this.pendingRequest === request) this.pendingRequest = null
-      if (this.source === source) this.source = null
-      source.disconnect()
+      this.audio = null
     }
+    return this.audio
   }
 
-  private cancelCurrentPlayback() {
-    this.pendingRequest?.abort()
-    this.pendingRequest = null
-    const source = this.source
-    this.source = null
-    if (!source) return
+  private attemptPlay(audio: SpeechPlaybackAudio) {
     try {
-      source.stop()
+      void audio.play().catch(() => undefined)
     }
     catch {
-      // The source may already have ended.
+      // Autoplay remains best-effort; the visible native controls are the fallback.
     }
-    source.disconnect()
   }
 
-  private contextState(context: AudioContext): AudioContextState {
-    return context.state
+  private reset(audio: SpeechPlaybackAudio) {
+    try {
+      audio.pause()
+    }
+    catch {
+      // The element may not have started.
+    }
+    try {
+      audio.removeAttribute('src')
+      audio.load()
+    }
+    catch {
+      // Reset failure must not affect the successful Assistant result.
+    }
+  }
+
+  private rewind(audio: SpeechPlaybackAudio) {
+    try {
+      audio.currentTime = 0
+    }
+    catch {
+      // Some browsers reject seeking before media metadata is available.
+    }
   }
 }
 
@@ -142,8 +125,7 @@ export function useSpeechPlayback(
   const sessionRef = useRef<SpeechPlaybackSession | null>(null)
   if (!sessionRef.current) {
     sessionRef.current = new SpeechPlaybackSession(
-      options.contextFactory ?? createBrowserAudioContext,
-      options.loadAudio ?? loadAudioFromUrl,
+      options.audioFactory ?? createBrowserAudio,
     )
   }
   const session = sessionRef.current
@@ -158,5 +140,6 @@ export function useSpeechPlayback(
   }, [audioUrl, session])
 
   const prime = useCallback(() => session.prime(), [session])
-  return { prime }
+  const stop = useCallback(() => session.stop(), [session])
+  return { prime, stop }
 }

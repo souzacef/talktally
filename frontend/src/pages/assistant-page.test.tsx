@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocaleProvider } from '@/app/providers/locale-provider'
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   voiceResultHandler: undefined as ((result: VoiceAssistantResponse) => void) | undefined,
   voiceStartRecording: vi.fn(),
   speechPlaybackPrime: vi.fn(),
+  speechPlaybackStop: vi.fn(),
   voiceResult: null as VoiceAssistantResponse | null,
   voiceError: null as Error | null,
 }))
@@ -52,6 +53,7 @@ vi.mock('@/features/assistant/hooks/use-voice-assistant', () => ({
 vi.mock('@/lib/audio/use-speech-playback', () => ({
   useSpeechPlayback: () => ({
     prime: mocks.speechPlaybackPrime,
+    stop: mocks.speechPlaybackStop,
   }),
 }))
 
@@ -107,6 +109,7 @@ describe('AssistantPage session conversation', () => {
     mocks.voiceResultHandler = undefined
     mocks.voiceStartRecording.mockReset()
     mocks.speechPlaybackPrime.mockReset()
+    mocks.speechPlaybackStop.mockReset()
     mocks.voiceResult = null
     mocks.voiceError = null
   })
@@ -243,6 +246,46 @@ describe('AssistantPage session conversation', () => {
     )
 
     expect(order).toEqual(['prime', 'start-recording'])
+  })
+
+  it('keeps both responsive voice players passive and stops hidden autoplay on manual play', async () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:assistant-voice-reply'),
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    })
+
+    mocks.voiceResult = {
+      transcript: 'Voice question',
+      message: 'Voice answer',
+      status: 'COMPLETED',
+      speechStatus: 'GENERATED',
+      audio: {
+        contentType: 'audio/wav',
+        base64: 'QUJD',
+      },
+    }
+
+    renderAssistant()
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('audio')).toHaveLength(2)
+    })
+
+    const players = Array.from(document.querySelectorAll('audio'))
+
+    for (const player of players) {
+      expect(player).not.toHaveAttribute('autoplay')
+    }
+
+    fireEvent.play(players[0]!)
+    expect(mocks.speechPlaybackStop).toHaveBeenCalledTimes(1)
+
+    fireEvent.play(players[1]!)
+    expect(mocks.speechPlaybackStop).toHaveBeenCalledTimes(2)
   })
 
   it('uses finance-oriented desktop and compact placeholders in pt-BR', () => {

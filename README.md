@@ -18,7 +18,7 @@ TalkTally combines deterministic financial workflows with a constrained AI assis
 
 ## Live demo
 
-Visit [talktally.onrender.com](https://talktally.onrender.com). After a period of inactivity, the application may take a couple of minutes to become ready. AI features depend on Google Gemini API availability and quota.
+Visit [talktally.onrender.com](https://talktally.onrender.com). After a period of inactivity, the application may take a couple of minutes to become ready. The public [Service status page](https://talktally.onrender.com/backend-status) polls the backend while a cold Render service wakes and reports when TalkTally is ready. AI features depend on Google Gemini API availability and quota.
 
 ## Highlights
 
@@ -28,7 +28,7 @@ Visit [talktally.onrender.com](https://talktally.onrender.com). After a period o
 - Explore dashboard totals, category breakdowns, monthly cash flow, and recent activity.
 - Track money owed by people, reimbursable expenses, and partial or complete repayments.
 - Ask financial questions or record transactions through the constrained AI assistant.
-- Speak commands through browser microphone capture, Gemini speech-to-text, and synthesized voice replies.
+- Speak commands through browser microphone capture, Gemini speech-to-text, and synthesized voice replies with mobile-safe native playback and manual controls.
 - Switch the responsive UI between English and Brazilian Portuguese.
 - Keep a bounded, per-user assistant transcript for the current browser session.
 - See authoritative transaction occurrence schedules and recorded/updated timestamps.
@@ -130,7 +130,9 @@ Normal automated tests use offline substitutes and require no Google API key or 
 3. The backend validates the audio and sends it to Gemini for transcription without translating semantic content.
 4. The transcript runs through the same assistant use case and approved tools as text input.
 5. Gemini synthesizes the final response, with explicit BRL identity and factual-fidelity guidance.
-6. The browser attempts playback and always preserves manual audio controls when speech is available.
+6. The browser primes a reusable native `HTMLAudioElement` from the recording gesture, attempts each generated reply at most once, and preserves visible native controls as fallback.
+
+The native playback path avoids the duplicate/echoed Web Audio behavior observed on Firefox Android while preserving manual replay when autoplay is blocked or unavailable.
 
 Text exchanges are retained in bounded `sessionStorage`, scoped to the authenticated user. Audio itself is not added to that transcript.
 
@@ -157,10 +159,10 @@ Text exchanges are retained in bounded `sessionStorage`, scoped to the authentic
 
 ## Testing
 
-The default suites currently contain **470 tests**:
+The default suites currently contain **543 tests**:
 
 - **302 backend tests** for domain, application, persistence adapters, HTTP/security behavior, AI tooling, speech, and configuration;
-- **168 frontend tests** across 30 files for components, hooks, API integration, navigation, localization, forms, and audio workflows.
+- **241 frontend tests** across 34 files for components, hooks, API integration, navigation, localization, forms, service-status behavior, and audio workflows.
 
 Additional opt-in coverage includes a real PostgreSQL/Testcontainers suite, a live Google AI text suite, and a live Google AI voice suite. Ordinary backend and frontend validation does not consume Google quota.
 

@@ -7,7 +7,7 @@
 [![CI do backend](https://github.com/souzacef/talktally/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/souzacef/talktally/actions/workflows/backend-ci.yml)
 [![CI do frontend](https://github.com/souzacef/talktally/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/souzacef/talktally/actions/workflows/frontend-ci.yml)
 
-[**Abrir a demonstração ao vivo**](https://talktally.onrender.com)
+[**Assistir à demonstração em vídeo (1 min)**](https://youtube.com/shorts/MvMs85hSVIM) · [**Abrir a demonstração ao vivo**](https://talktally.onrender.com)
 
 O TalkTally combina fluxos financeiros determinísticos com um assistente de IA restrito. Usuários podem gerenciar receitas, despesas, parcelas e reembolsos por meio de uma interface web responsiva ou de comandos de texto e voz em linguagem natural. A interface está disponível em inglês e português do Brasil.
 

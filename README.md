@@ -7,7 +7,7 @@ English | [Português](README.pt-BR.md)
 [![Backend CI](https://github.com/souzacef/talktally/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/souzacef/talktally/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://github.com/souzacef/talktally/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/souzacef/talktally/actions/workflows/frontend-ci.yml)
 
-[**Open the live demo**](https://talktally.onrender.com)
+[**Watch the 1-minute video demo**](https://youtube.com/shorts/MvMs85hSVIM) · [**Open the live demo**](https://talktally.onrender.com)
 
 TalkTally combines deterministic financial workflows with a constrained AI assistant. Users can manage income, expenses, installments, and reimbursements through a responsive web interface or natural-language text and voice commands. The UI supports English and Brazilian Portuguese.
 

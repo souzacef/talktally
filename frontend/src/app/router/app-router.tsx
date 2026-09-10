@@ -23,7 +23,7 @@ function PublicBackendStatusIndicator() {
   if (pathname !== '/login' && pathname !== '/register') return null
 
   return (
-    <div className="fixed right-4 top-16 z-30 sm:right-6 sm:top-16">
+    <div className="fixed right-4 top-[4.5rem] z-30 sm:right-6 sm:top-[4.5rem]">
       <BackendStatusIndicator />
     </div>
   )

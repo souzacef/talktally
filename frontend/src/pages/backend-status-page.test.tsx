@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LOCALE_KEY, LocaleProvider } from '@/app/providers/locale-provider'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import {
-  BackendStatusPage,
+  BackendHealthProvider,
   SERVICE_STATUS_POLL_INTERVAL_MS,
+  SERVICE_STATUS_SOFT_RETRY_MS,
   SERVICE_STATUS_STARTUP_WINDOW_MS,
-} from '@/pages/backend-status-page'
+} from '@/features/health/backend-health-provider'
+import { BackendStatusPage } from '@/pages/backend-status-page'
 
 const mocks = vi.hoisted(() => ({ isUp: vi.fn() }))
 
@@ -22,7 +24,11 @@ function renderStatus(locale: 'en-US' | 'pt-BR' = 'en-US') {
   })
   return render(
     <QueryClientProvider client={client}>
-      <LocaleProvider><ThemeProvider><BackendStatusPage /></ThemeProvider></LocaleProvider>
+      <LocaleProvider>
+        <ThemeProvider>
+          <BackendHealthProvider><BackendStatusPage /></BackendHealthProvider>
+        </ThemeProvider>
+      </LocaleProvider>
     </QueryClientProvider>,
   )
 }
@@ -51,10 +57,9 @@ describe('BackendStatusPage', () => {
     expect(screen.getByRole('heading', { name: 'TalkTally status' })).toBeInTheDocument()
     expect(screen.getByText('Getting TalkTally ready...')).toBeInTheDocument()
     expect(screen.getByText(
-      'TalkTally may take a couple of minutes to get ready after a period of inactivity.',
+      'TalkTally may take a few minutes to get ready after a period of inactivity.',
     )).toBeInTheDocument()
     expect(screen.getByTestId('service-checking-icon')).toHaveClass('animate-spin')
-    await flush()
     await flush()
 
     await act(async () => vi.advanceTimersByTimeAsync(SERVICE_STATUS_POLL_INTERVAL_MS * 2))
@@ -67,22 +72,26 @@ describe('BackendStatusPage', () => {
     expect(mocks.isUp).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps polling through failures, times out near three minutes, and Retry restarts', async () => {
+  it('keeps polling, offers a soft retry near 2.5 minutes, and only later becomes unavailable', async () => {
     mocks.isUp.mockRejectedValue(new Error('internal health detail'))
     renderStatus()
     await flush()
 
     await act(async () => vi.advanceTimersByTimeAsync(60_000))
     expect(screen.getByText('Getting TalkTally ready...')).toBeInTheDocument()
-    expect(screen.queryByText('TalkTally is taking longer than expected.')).not.toBeInTheDocument()
+    expect(screen.queryByText('TalkTally is still starting up...')).not.toBeInTheDocument()
     expect(mocks.isUp.mock.calls.length).toBeGreaterThan(1)
 
-    await act(async () => vi.advanceTimersByTimeAsync(
-      SERVICE_STATUS_STARTUP_WINDOW_MS - 60_000,
-    ))
-    expect(screen.getByText('TalkTally is taking longer than expected.')).toBeInTheDocument()
+    await act(async () => vi.advanceTimersByTimeAsync(SERVICE_STATUS_SOFT_RETRY_MS - 60_000))
+    expect(screen.getByText('TalkTally is still starting up...')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('internal health detail')
+
+    await act(async () => vi.advanceTimersByTimeAsync(
+      SERVICE_STATUS_STARTUP_WINDOW_MS - SERVICE_STATUS_SOFT_RETRY_MS,
+    ))
+    expect(screen.getByText('TalkTally could not be reached yet.')).toBeInTheDocument()
+    expect(screen.getByTestId('service-unavailable-icon')).toBeInTheDocument()
 
     const callsBeforeRetry = mocks.isUp.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))

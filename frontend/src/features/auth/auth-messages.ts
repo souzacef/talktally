@@ -40,10 +40,17 @@ const enUS = {
   backendHealth: 'Service status',
   backendStatusTitle: 'TalkTally status',
   backendChecking: 'Getting TalkTally ready...',
-  backendWakeHelper: 'TalkTally may take a couple of minutes to get ready after a period of inactivity.',
+  backendStillWaking: 'TalkTally is still starting up...',
+  backendWakeHelper: 'TalkTally may take a few minutes to get ready after a period of inactivity.',
   backendUp: 'TalkTally is ready.',
-  backendUnavailable: 'TalkTally is taking longer than expected.',
+  backendUnavailable: 'TalkTally could not be reached yet.',
   retryBackend: 'Try again',
+  backendIndicatorChecking: 'Checking service…',
+  backendIndicatorWaking: 'Starting service…',
+  backendIndicatorStillWaking: 'Still starting…',
+  backendIndicatorReady: 'Ready',
+  backendIndicatorUnavailable: 'Unavailable',
+  backendStatusDetails: 'Open service details',
 } as const
 
 type AuthMessageKey = keyof typeof enUS
@@ -88,10 +95,17 @@ const ptBR: Record<AuthMessageKey, string> = {
   backendHealth: 'Status do serviço',
   backendStatusTitle: 'Status do TalkTally',
   backendChecking: 'Preparando o TalkTally...',
+  backendStillWaking: 'O TalkTally ainda está iniciando...',
   backendWakeHelper: 'O TalkTally pode levar alguns minutos para ficar pronto após um período de inatividade.',
   backendUp: 'O TalkTally está pronto.',
-  backendUnavailable: 'O TalkTally está demorando mais do que o esperado.',
+  backendUnavailable: 'Ainda não foi possível acessar o TalkTally.',
   retryBackend: 'Tentar novamente',
+  backendIndicatorChecking: 'Verificando serviço…',
+  backendIndicatorWaking: 'Iniciando serviço…',
+  backendIndicatorStillWaking: 'Ainda iniciando…',
+  backendIndicatorReady: 'Pronto',
+  backendIndicatorUnavailable: 'Indisponível',
+  backendStatusDetails: 'Abrir detalhes do serviço',
 }
 
 const messages: Record<AppLocale, Record<AuthMessageKey, string>> = {

@@ -15,7 +15,7 @@ function expectSafeExternalLink(link: HTMLElement, href: string) {
 }
 
 describe('AuthFooter', () => {
-  it('renders English attribution with safe GitHub and browser-friendly health links', () => {
+  it('renders English attribution with a safe GitHub link only', () => {
     renderFooter('en-US')
 
     expect(screen.getByText('Built by Carlos Eduardo Freire de Souza')).toBeInTheDocument()
@@ -23,25 +23,19 @@ describe('AuthFooter', () => {
       screen.getByRole('link', { name: 'GitHub' }),
       'https://github.com/souzacef',
     )
-
-    expectSafeExternalLink(
-      screen.getByRole('link', { name: 'Service status' }),
-      '/backend-status',
-    )
+    expect(screen.queryByRole('link', { name: 'Service status' })).not.toBeInTheDocument()
   })
 
-  it('renders Portuguese attribution and backend-health copy', () => {
+  it('renders Portuguese attribution without a redundant service-status link', () => {
     renderFooter('pt-BR')
 
     expect(screen.getByText('Criado por Carlos Eduardo Freire de Souza')).toBeInTheDocument()
     const githubLink = screen.getByRole('link', { name: 'GitHub' })
-    const healthLink = screen.getByRole('link', { name: 'Status do serviço' })
     const footer = screen.getByRole('contentinfo')
 
     expect(footer).toHaveClass('sm:-mx-8')
     expect(footer).not.toHaveClass('whitespace-nowrap')
     expect(githubLink.parentElement).toHaveClass('whitespace-nowrap')
-    expect(healthLink.parentElement).toHaveClass('whitespace-nowrap')
+    expect(screen.queryByRole('link', { name: 'Status do serviço' })).not.toBeInTheDocument()
   })
-
 })

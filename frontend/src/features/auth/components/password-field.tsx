@@ -11,6 +11,7 @@ interface PasswordFieldProps {
   hideLabel: string
   describedBy?: string
   invalid?: boolean
+  enforceLengthPolicy?: boolean
 }
 
 export function PasswordField({
@@ -22,6 +23,7 @@ export function PasswordField({
   hideLabel,
   describedBy,
   invalid = false,
+  enforceLengthPolicy = true,
 }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false)
   const Icon = visible ? EyeOff : Eye
@@ -34,8 +36,8 @@ export function PasswordField({
         type={visible ? 'text' : 'password'}
         autoComplete={autoComplete}
         required
-        minLength={10}
-        maxLength={128}
+        minLength={enforceLengthPolicy ? 10 : undefined}
+        maxLength={enforceLengthPolicy ? 128 : undefined}
         aria-describedby={describedBy}
         aria-invalid={invalid}
         value={value}

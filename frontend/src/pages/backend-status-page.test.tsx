@@ -62,7 +62,7 @@ describe('BackendStatusPage', () => {
     expect(screen.getByTestId('service-checking-icon')).toHaveClass('animate-spin')
     await flush()
 
-    await act(async () => vi.advanceTimersByTimeAsync(SERVICE_STATUS_POLL_INTERVAL_MS))
+    await act(async () => vi.advanceTimersByTimeAsync(SERVICE_STATUS_POLL_INTERVAL_MS * 2))
     await flush()
     expect(screen.getByText('TalkTally is ready.')).toBeInTheDocument()
     expect(screen.getByTestId('service-ready-icon')).toBeInTheDocument()

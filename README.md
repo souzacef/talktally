@@ -18,7 +18,7 @@ TalkTally combines deterministic financial workflows with a constrained AI assis
 
 ## Live demo
 
-Visit [talktally.onrender.com](https://talktally.onrender.com). After a period of inactivity, the application may take a couple of minutes to become ready. The public [Service status page](https://talktally.onrender.com/backend-status) polls the backend while a cold Render service wakes and reports when TalkTally is ready. AI features depend on Google Gemini API availability and quota.
+Visit [talktally.onrender.com](https://talktally.onrender.com). After a period of inactivity, the backend may take a few minutes to wake from a Render cold start. The web app automatically begins checking and waking the backend as soon as it opens. A compact readiness indicator near the language and theme controls shows startup progress, offers a soft retry after roughly 2.5 minutes while polling continues, and links to the detailed [service status page](https://talktally.onrender.com/backend-status). AI features depend on Google Gemini API availability and quota.
 
 ## Highlights
 
@@ -30,6 +30,7 @@ Visit [talktally.onrender.com](https://talktally.onrender.com). After a period o
 - Ask financial questions or record transactions through the constrained AI assistant.
 - Speak commands through browser microphone capture, Gemini speech-to-text, and synthesized voice replies with mobile-safe native playback and manual controls.
 - Switch the responsive UI between English and Brazilian Portuguese.
+- Automatically wake the sleeping demo backend and surface non-blocking readiness progress without requiring a manual status-page detour.
 - Keep a bounded, per-user assistant transcript for the current browser session.
 - See authoritative transaction occurrence schedules and recorded/updated timestamps.
 
@@ -159,10 +160,10 @@ Text exchanges are retained in bounded `sessionStorage`, scoped to the authentic
 
 ## Testing
 
-The default suites currently contain **543 tests**:
+The default suites currently contain **546 tests**:
 
 - **302 backend tests** for domain, application, persistence adapters, HTTP/security behavior, AI tooling, speech, and configuration;
-- **241 frontend tests** across 34 files for components, hooks, API integration, navigation, localization, forms, service-status behavior, and audio workflows.
+- **244 frontend tests** across 35 files for components, hooks, API integration, navigation, localization, forms, automatic service readiness, and audio workflows.
 
 Additional opt-in coverage includes a real PostgreSQL/Testcontainers suite, a live Google AI text suite, and a live Google AI voice suite. Ordinary backend and frontend validation does not consume Google quota.
 
@@ -190,7 +191,7 @@ Create the local PostgreSQL database/user expected by your configuration, then p
 cp .env.example .env
 ```
 
-Set `DB_JDBC_URL`, `DB_USERNAME`, `DB_PASSWORD`, and a generated `JWT_SECRET_BASE64` in `.env`. Set `GOOGLE_API_KEY` only if you want live AI features. The remaining supported options and defaults—including model, voice, CORS origin, time zone, port, and token lifetime—are documented in the template.
+Set `DB_JDBC_URL`, `DB_USERNAME`, `DB_PASSWORD`, and a generated `JWT_SECRET_BASE64` in `.env`. Set `GOOGLE_API_KEY` only if you want live AI features. The remaining supported options and defaults, including model, voice, CORS origin, time zone, port, and token lifetime, are documented in the template.
 
 Load the variables and start the API from the repository root:
 

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authText } from '@/features/auth/auth-messages'
 import { useAuth } from '@/features/auth/auth-provider'
+import { PasswordField } from '@/features/auth/components/password-field'
 import { ApiError } from '@/lib/api/api-client'
 
 interface LoginLocationState {
@@ -84,7 +85,15 @@ export function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{text('password')}</Label>
-                <Input id="password" name="password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+                <PasswordField
+                  id="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={setPassword}
+                  showLabel={text('showPassword')}
+                  hideLabel={text('hidePassword')}
+                  enforceLengthPolicy={false}
+                />
               </div>
               <Button className="mt-2 w-full" size="lg" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? text('signingIn') : text('signIn')}

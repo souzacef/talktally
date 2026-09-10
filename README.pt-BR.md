@@ -18,7 +18,7 @@ O TalkTally combina fluxos financeiros determinísticos com um assistente de IA 
 
 ## Demonstração ao vivo
 
-Acesse [talktally.onrender.com](https://talktally.onrender.com). Após um período de inatividade, a aplicação pode levar alguns minutos para ficar pronta. A página pública de [Status do serviço](https://talktally.onrender.com/backend-status) consulta o backend enquanto um serviço gratuito do Render desperta e informa quando o TalkTally está pronto. Os recursos de IA dependem da disponibilidade e da cota da API do Google Gemini.
+Acesse [talktally.onrender.com](https://talktally.onrender.com). Após um período de inatividade, o backend pode levar alguns minutos para despertar de uma inicialização a frio no Render. A aplicação web começa automaticamente a verificar e despertar o backend assim que é aberta. Um indicador compacto de prontidão próximo aos controles de idioma e tema exibe o progresso, oferece uma nova tentativa após aproximadamente 2,5 minutos enquanto a consulta continua e dá acesso à página detalhada de [status do serviço](https://talktally.onrender.com/backend-status). Os recursos de IA dependem da disponibilidade e da cota da API do Google Gemini.
 
 ## Destaques
 
@@ -30,6 +30,7 @@ Acesse [talktally.onrender.com](https://talktally.onrender.com). Após um perío
 - Consultas financeiras e registro de transações por meio do assistente de IA restrito.
 - Comandos falados por captura do microfone no navegador, conversão de fala em texto pelo Gemini e respostas de voz sintetizadas com reprodução nativa robusta em dispositivos móveis e controles manuais.
 - Interface responsiva disponível em inglês e português do Brasil.
+- Despertar automático do backend adormecido da demonstração, com progresso não bloqueante e sem exigir desvio manual pela página de status.
 - Histórico limitado do assistente por usuário durante a sessão atual do navegador.
 - Cronogramas oficiais das ocorrências das transações e datas de registro/atualização.
 
@@ -159,10 +160,10 @@ As trocas de texto são mantidas de forma limitada no `sessionStorage`, separada
 
 ## Testes
 
-As suítes padrão contêm atualmente **543 testes**:
+As suítes padrão contêm atualmente **546 testes**:
 
 - **302 testes de backend** para domínio, aplicação, adaptadores de persistência, comportamento HTTP/segurança, ferramentas de IA, voz e configuração;
-- **241 testes de frontend** em 34 arquivos para componentes, hooks, integração de API, navegação, localização, formulários, comportamento do status do serviço e fluxos de áudio.
+- **244 testes de frontend** em 35 arquivos para componentes, hooks, integração de API, navegação, localização, formulários, prontidão automática do serviço e fluxos de áudio.
 
 A cobertura adicional e opcional inclui uma suíte real de PostgreSQL/Testcontainers, uma suíte de texto com Google AI ao vivo e uma suíte de voz com Google AI ao vivo. A validação comum de backend e frontend não consome cota do Google.
 
@@ -190,7 +191,7 @@ Crie o banco de dados/usuário PostgreSQL local esperado pela sua configuração
 cp .env.example .env
 ```
 
-Defina `DB_JDBC_URL`, `DB_USERNAME`, `DB_PASSWORD` e um `JWT_SECRET_BASE64` gerado no arquivo `.env`. Defina `GOOGLE_API_KEY` apenas se quiser usar os recursos de IA ao vivo. As demais opções compatíveis e seus valores padrão — incluindo modelo, voz, origem CORS, fuso horário, porta e duração do token — estão documentadas no arquivo de exemplo.
+Defina `DB_JDBC_URL`, `DB_USERNAME`, `DB_PASSWORD` e um `JWT_SECRET_BASE64` gerado no arquivo `.env`. Defina `GOOGLE_API_KEY` apenas se quiser usar os recursos de IA ao vivo. As demais opções compatíveis e seus valores padrão, incluindo modelo, voz, origem CORS, fuso horário, porta e duração do token, estão documentadas no arquivo de exemplo.
 
 Carregue as variáveis e inicie a API a partir da raiz do repositório:
 

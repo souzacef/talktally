@@ -23,17 +23,6 @@ export function AuthFooter() {
             {text('github')}
           </a>
         </span>
-        <span className="inline-block whitespace-nowrap">
-          <span aria-hidden="true"> · </span>
-          <a
-            className={linkClassName}
-            href="/backend-status"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {text('backendHealth')}
-          </a>
-        </span>
       </p>
     </footer>
   )
